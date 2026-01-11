@@ -1,0 +1,216 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-01-11",
+  "description": "Intent Bot 意图识别测试用例集",
+  "cases": [
+    {
+      "id": "swap-001",
+      "category": "swap",
+      "input": "Swap 100 USDC to ETH",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDC",
+          "toToken": "ETH",
+          "amount": "100"
+        }
+      }
+    },
+    {
+      "id": "swap-002",
+      "category": "swap",
+      "input": "我想把 ETH 换成 USDT",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "ETH",
+          "toToken": "USDT"
+        }
+      }
+    },
+    {
+      "id": "swap-003",
+      "category": "swap",
+      "input": "Convert 50 DAI to WBTC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "DAI",
+          "toToken": "WBTC",
+          "amount": "50"
+        }
+      }
+    },
+    {
+      "id": "supply-001",
+      "category": "supply",
+      "input": "把 0.5 个 ETH 存到 Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.5"
+        }
+      }
+    },
+    {
+      "id": "supply-002",
+      "category": "supply",
+      "input": "Deposit 1000 USDC to Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "USDC",
+          "amount": "1000"
+        }
+      }
+    },
+    {
+      "id": "supply-003",
+      "category": "supply",
+      "input": "Supply all my DAI to earn yield",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "DAI",
+          "amount": "all"
+        }
+      }
+    },
+    {
+      "id": "withdraw-001",
+      "category": "withdraw",
+      "input": "从 Aave 提取我所有的 USDC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_aave",
+        "params": {
+          "token": "USDC"
+        }
+      }
+    },
+    {
+      "id": "withdraw-002",
+      "category": "withdraw",
+      "input": "Withdraw 0.2 ETH from Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.2"
+        }
+      }
+    },
+    {
+      "id": "transfer-001",
+      "category": "transfer",
+      "input": "发送 50 USDC 到 0x1234567890abcdef1234567890abcdef12345678",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "USDC",
+          "amount": "50",
+          "to": "0x1234567890abcdef1234567890abcdef12345678"
+        }
+      }
+    },
+    {
+      "id": "transfer-002",
+      "category": "transfer",
+      "input": "Send 1 ETH to vitalik.eth",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "ETH",
+          "amount": "1",
+          "to": "vitalik.eth"
+        }
+      }
+    },
+    {
+      "id": "balance-001",
+      "category": "balance",
+      "input": "查看我的余额",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {}
+      }
+    },
+    {
+      "id": "balance-002",
+      "category": "balance",
+      "input": "How much ETH do I have?",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {
+          "token": "ETH"
+        }
+      }
+    },
+    {
+      "id": "chat-001",
+      "category": "general_chat",
+      "input": "你好",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["帮", "可以", "您好", "你好"]
+      }
+    },
+    {
+      "id": "chat-002",
+      "category": "general_chat",
+      "input": "Hello, what can you do?",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["help", "swap", "transfer", "Aave", "balance"]
+      }
+    },
+    {
+      "id": "chat-003",
+      "category": "general_chat",
+      "input": "什么是 Aave？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["Aave", "借贷", "DeFi", "存款", "协议"]
+      }
+    },
+    {
+      "id": "chat-004",
+      "category": "general_chat",
+      "input": "DeFi 是什么意思？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["DeFi", "去中心化", "金融"]
+      }
+    },
+    {
+      "id": "offtopic-001",
+      "category": "off_topic",
+      "input": "今天天气怎么样？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["抱歉", "无法", "不能", "天气"]
+      }
+    },
+    {
+      "id": "unclear-001",
+      "category": "unclear",
+      "input": "我想做点什么",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["什么", "帮", "操作", "想"]
+      }
+    }
+  ]
+}

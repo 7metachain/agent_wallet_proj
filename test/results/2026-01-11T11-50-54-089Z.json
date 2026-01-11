@@ -1,0 +1,460 @@
+{
+  "timestamp": "2026-01-11T11:49:08.104Z",
+  "model": "deepseek-v3-2-251201",
+  "total": 18,
+  "passed": 13,
+  "failed": 5,
+  "byCategory": {
+    "swap": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1
+    },
+    "supply": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1
+    },
+    "withdraw": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1
+    },
+    "transfer": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1
+    },
+    "balance": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1
+    },
+    "general_chat": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    "off_topic": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "unclear": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "details": [
+    {
+      "id": "swap-001",
+      "category": "swap",
+      "input": "Swap 100 USDC to ETH",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDC",
+          "toToken": "ETH",
+          "amount": "100"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDC",
+          "toToken": "ETH",
+          "amount": "100"
+        },
+        "content": "I'll help you swap 100 USDC to ETH. Let me execute that transaction for you.\n\n"
+      }
+    },
+    {
+      "id": "swap-002",
+      "category": "swap",
+      "input": "我想把 ETH 换成 USDT",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "ETH",
+          "toToken": "USDT"
+        }
+      },
+      "passed": false,
+      "reason": "期望意图 swap_tokens，但未触发工具调用",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "我注意到您想要将 ETH 换成 USDT。为了完成这笔交易，我需要知道您想要兑换多少 ETH。请问您打算兑换多少 ETH 呢？"
+      }
+    },
+    {
+      "id": "swap-003",
+      "category": "swap",
+      "input": "Convert 50 DAI to WBTC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "DAI",
+          "toToken": "WBTC",
+          "amount": "50"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "DAI",
+          "toToken": "WBTC",
+          "amount": "50"
+        },
+        "content": "I can help you convert 50 DAI to WBTC. However, I need to know the specific amount you want to swap. You mentioned \"50 DAI\" - is that exactly 50 DAI you want to convert to WBTC?\n\nAlso, could you confi..."
+      }
+    },
+    {
+      "id": "supply-001",
+      "category": "supply",
+      "input": "把 0.5 个 ETH 存到 Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.5"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.5"
+        },
+        "content": "我来帮您将 0.5 ETH 存入 Aave。不过我需要确认一下，您要存入的确实是 0.5 个 ETH，对吗？\n\n如果是的话，我立即为您执行这个操作。\n\n"
+      }
+    },
+    {
+      "id": "supply-002",
+      "category": "supply",
+      "input": "Deposit 1000 USDC to Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "USDC",
+          "amount": "1000"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "USDC",
+          "amount": "1000"
+        },
+        "content": "我来帮您将1000 USDC存入Aave协议。\n\n"
+      }
+    },
+    {
+      "id": "supply-003",
+      "category": "supply",
+      "input": "Supply all my DAI to earn yield",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_aave",
+        "params": {
+          "token": "DAI",
+          "amount": "all"
+        }
+      },
+      "passed": false,
+      "reason": "期望意图 supply_to_aave，实际 check_balance",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {
+          "token": "DAI"
+        },
+        "content": "I understand you want to supply all your DAI to Aave to earn yield. However, I need to check your current DAI balance first to know exactly how much you have available to supply.\n\n"
+      }
+    },
+    {
+      "id": "withdraw-001",
+      "category": "withdraw",
+      "input": "从 Aave 提取我所有的 USDC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_aave",
+        "params": {
+          "token": "USDC"
+        }
+      },
+      "passed": false,
+      "reason": "期望意图 withdraw_from_aave，但未触发工具调用",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "我理解您想要从 Aave 提取所有的 USDC。不过，为了执行这个操作，我需要知道您想要提取的具体金额。\n\n您是说\"所有的 USDC\"，是指您目前在 Aave 中存入的全部 USDC 吗？如果是这样，您需要告诉我具体的金额，比如 \"100 USDC\" 或 \"全部余额\"。\n\n另外，如果您不确定当前在 Aave 中有多少 USDC，我可以先帮您检查一下钱包中 USDC 的余额吗？这样您就能知道确切的提..."
+      }
+    },
+    {
+      "id": "withdraw-002",
+      "category": "withdraw",
+      "input": "Withdraw 0.2 ETH from Aave",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.2"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_aave",
+        "params": {
+          "token": "ETH",
+          "amount": "0.2"
+        },
+        "content": "我来帮您从Aave提取0.2 ETH。\n\n"
+      }
+    },
+    {
+      "id": "transfer-001",
+      "category": "transfer",
+      "input": "发送 50 USDC 到 0x1234567890abcdef1234567890abcdef12345678",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "USDC",
+          "amount": "50",
+          "to": "0x1234567890abcdef1234567890abcdef12345678"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "USDC",
+          "amount": "50",
+          "to": "0x1234567890abcdef1234567890abcdef12345678"
+        },
+        "content": "我来帮您发送50 USDC到指定地址。\n\n"
+      }
+    },
+    {
+      "id": "transfer-002",
+      "category": "transfer",
+      "input": "Send 1 ETH to vitalik.eth",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "ETH",
+          "amount": "1",
+          "to": "vitalik.eth"
+        }
+      },
+      "passed": false,
+      "reason": "期望意图 transfer_token，但未触发工具调用",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "I understand you want to send 1 ETH to vitalik.eth. However, to execute this transfer, I need the recipient's actual wallet address rather than just the ENS name \"vitalik.eth\".\n\nThe `transfer_token` f..."
+      }
+    },
+    {
+      "id": "balance-001",
+      "category": "balance",
+      "input": "查看我的余额",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {}
+      },
+      "passed": false,
+      "reason": "期望意图 check_balance，但未触发工具调用",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "我来帮您查看钱包余额。请问您想查看特定代币的余额，还是查看所有代币的余额？\n\n如果您想查看特定代币（比如ETH、USDC等），请告诉我代币名称。如果您想查看所有代币，我会帮您检查主要代币的余额。"
+      }
+    },
+    {
+      "id": "balance-002",
+      "category": "balance",
+      "input": "How much ETH do I have?",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {
+          "token": "ETH"
+        }
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {
+          "token": "ETH"
+        },
+        "content": "I'll check your ETH balance for you.\n\n"
+      }
+    },
+    {
+      "id": "chat-001",
+      "category": "general_chat",
+      "input": "你好",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "帮",
+          "可以",
+          "您好",
+          "你好"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "你好！我是 Intent Bot，一个专门帮助您执行区块链交易的AI助手。\n\n我可以帮您完成以下操作：\n1. **代币兑换** - 比如将 USDC 换成 ETH\n2. **Aave存款** - 将代币存入 Aave 赚取利息\n3. **Aave取款** - 从 Aave 中提取代币\n4. **代币转账** - 发送代币到其他地址\n5. **余额查询** - 查看钱包中的代币余额\n\n请告诉我您想要..."
+      }
+    },
+    {
+      "id": "chat-002",
+      "category": "general_chat",
+      "input": "Hello, what can you do?",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "help",
+          "swap",
+          "transfer",
+          "Aave",
+          "balance"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "Hello! I'm Intent Bot, your Web3 trading assistant. I can help you with various blockchain transactions including:\n\n1. **Token Swaps**: Exchange one token for another (e.g., USDC to ETH)\n2. **Aave Ope..."
+      }
+    },
+    {
+      "id": "chat-003",
+      "category": "general_chat",
+      "input": "什么是 Aave？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "Aave",
+          "借贷",
+          "DeFi",
+          "存款",
+          "协议"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "Aave 是一个去中心化的借贷协议，属于 DeFi（去中心化金融）生态系统的重要组成部分。简单来说，Aave 允许用户：\n\n**主要功能：**\n1. **存款赚息** - 将加密货币存入 Aave 资金池，可以获得利息收益\n2. **借贷服务** - 使用已存入的资产作为抵押，借出其他加密货币\n3. **闪电贷** - 无需抵押的即时贷款（需在同一交易内归还）\n\n**特点：**\n- 完全去中心化，..."
+      }
+    },
+    {
+      "id": "chat-004",
+      "category": "general_chat",
+      "input": "DeFi 是什么意思？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "DeFi",
+          "去中心化",
+          "金融"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "DeFi 是 \"Decentralized Finance\"（去中心化金融）的缩写。它指的是在区块链上构建的金融应用程序，无需传统银行或金融机构等中介机构。\n\nDeFi 的主要特点包括：\n- **去中心化**：没有中心化机构控制，由智能合约和代码运行\n- **透明性**：所有交易都在公开的区块链上可查\n- **无需许可**：任何人都可以参与，无需银行账户或信用检查\n- **可组合性**：不同的 D..."
+      }
+    },
+    {
+      "id": "offtopic-001",
+      "category": "off_topic",
+      "input": "今天天气怎么样？",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "抱歉",
+          "无法",
+          "不能",
+          "天气"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "今天天气情况我无法查询，因为我是专门处理区块链交易的Web3交易机器人。\n\n我可以帮您完成以下操作：\n- **代币兑换**：比如用USDC兑换ETH\n- **Aave存款**：将代币存入Aave赚取利息\n- **Aave取款**：从Aave提取代币\n- **代币转账**：发送代币到其他地址\n- **余额查询**：查看钱包中的代币余额\n\n您有什么区块链交易需要处理吗？"
+      }
+    },
+    {
+      "id": "unclear-001",
+      "category": "unclear",
+      "input": "我想做点什么",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": [
+          "什么",
+          "帮",
+          "操作",
+          "想"
+        ]
+      },
+      "passed": true,
+      "reason": "",
+      "actual": {
+        "hasIntent": null,
+        "intentType": null,
+        "params": null,
+        "content": "你好！我是Intent Bot，一个Web3交易助手。我可以帮助你执行以下区块链操作：\n\n**我的功能包括：**\n1. **代币兑换** - 比如用USDC兑换ETH，或者ETH兑换USDT\n2. **Aave存款** - 将代币存入Aave协议赚取利息\n3. **Aave取款** - 从Aave协议中提取代币\n4. **代币转账** - 发送代币到其他地址\n5. **余额查询** - 查看钱包中..."
+      }
+    }
+  ]
+}

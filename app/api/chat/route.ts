@@ -7,10 +7,11 @@ import { v4 as uuidv4 } from "uuid";
 // Mock 模式标识
 const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
-// 初始化 OpenAI 客户端（仅在非 Mock 模式下）
+// 初始化 OpenAI 兼容客户端（使用第三方 DeepSeek API）
 const openai = !MOCK_MODE
   ? new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      baseURL: "https://maas-openapi.wanjiedata.com/api/v1",
     })
   : null;
 
@@ -48,9 +49,9 @@ export async function POST(request: NextRequest) {
       { role: "user", content: message },
     ];
 
-    // 调用 OpenAI API
+    // 调用 DeepSeek API（OpenAI 兼容接口）
     const response = await openai!.chat.completions.create({
-      model: "gpt-4o",
+      model: "deepseek-v3-2-251201",
       messages,
       tools: intentTools,
       tool_choice: "auto",
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     // 检查是否是 API Key 错误
     if (error?.status === 401) {
       return NextResponse.json(
-        { error: "OpenAI API key is invalid or not configured" },
+        { error: "DeepSeek API key is invalid or not configured" },
         { status: 500 }
       );
     }
@@ -200,9 +201,7 @@ function generateMockResponse(message: string): {
       ],
       needsConfirmation: true,
     };
-  }
-
-  // 检测 supply/deposit 意图
+  }  // 检测 supply/deposit 意图
   if (
     lowerMessage.includes("supply") ||
     lowerMessage.includes("deposit") ||
