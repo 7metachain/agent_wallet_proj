@@ -1,5 +1,11 @@
 import { Address } from "viem";
 
+// TokenInfo: 描述代币的元数据结构，供 UI 和业务逻辑使用
+// - symbol: 代币简称（例如 ETH、USDC）
+// - name: 代币全称
+// - decimals: 小数位数（用于金额格式化与单位转换）
+// - address: 合约地址（原生币使用特殊地址占位）
+// - logoURI: 可选，代币图标 URL（用于展示）
 export interface TokenInfo {
   symbol: string;
   name: string;
@@ -8,7 +14,10 @@ export interface TokenInfo {
   logoURI?: string;
 }
 
-// Token 地址映射 (按链 ID 组织)
+// TOKENS: 按链 ID 组织的代币映射表。每个链包含若干已知代币及其元数据。
+// 设计目的：
+// - 为交易构建、余额查询、UI 下拉选择等场景提供可靠的代币元数据来源
+// - 将链相关的代币隔离，便于多链支持
 export const TOKENS: Record<number, Record<string, TokenInfo>> = {
   // Base Sepolia (84532)
   84532: {
@@ -93,7 +102,8 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
   },
 };
 
-// 根据符号获取 Token 信息
+// 根据符号（symbol）获取 Token 信息
+// - 返回值可能为 undefined（符号未收录或链未支持）
 export function getTokenBySymbol(
   chainId: number,
   symbol: string
@@ -103,7 +113,8 @@ export function getTokenBySymbol(
   return chainTokens[symbol.toUpperCase()];
 }
 
-// 根据地址获取 Token 信息
+// 根据地址获取 Token 信息（地址优先匹配，区分大小写规范化）
+// - 常用于从链上返回的 token 地址映射为 UI 可识别的元数据
 export function getTokenByAddress(
   chainId: number,
   address: Address
@@ -117,13 +128,13 @@ export function getTokenByAddress(
   );
 }
 
-// 获取链上所有 Token
+// 获取指定链上所有已知 Token 的数组（用于列表渲染或下拉选择）
 export function getTokensForChain(chainId: number): TokenInfo[] {
   const chainTokens = TOKENS[chainId];
   if (!chainTokens) return [];
   return Object.values(chainTokens);
 }
 
-// 常用 Token 符号列表
+// 常用 Token 符号列表，用于 UI 预设或快速筛选
 export const COMMON_TOKEN_SYMBOLS = ["ETH", "WETH", "USDC", "USDT", "DAI", "WBTC"];
 

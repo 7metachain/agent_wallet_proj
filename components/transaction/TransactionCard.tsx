@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
+import { useEffect } from "react";
+import { useAccount } from "wagmi";
 import { Intent } from "@/types/intent";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,11 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useIntentExecution } from "@/hooks/useWalletInteractions";
 
 interface TransactionCardProps {
   intent: Intent;
+  onExecutionComplete?: (success: boolean, txHashes: string[]) => void;
 }
 
 const intentIcons = {
@@ -39,16 +40,9 @@ const intentLabels = {
   check_balance: "Check Balance",
 };
 
-export function TransactionCard({ intent }: TransactionCardProps) {
-  const { isConnected } = useAccount();
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
-  const [error, setError] = useState<string | null>(null);
-
-  const { sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
+export function TransactionCard({ intent, onExecutionComplete }: TransactionCardProps) {
+  const { isConnected, chainId } = useAccount();
+  const { execute, isExecuting, isConfirming, isSuccess, error, currentTxHash } = useIntentExecution(intent);
 
   const Icon = intentIcons[intent.type];
   const label = intentLabels[intent.type];
@@ -80,48 +74,20 @@ export function TransactionCard({ intent }: TransactionCardProps) {
   const handleExecute = async () => {
     if (!isConnected) return;
 
-    setIsExecuting(true);
-    setError(null);
+    const result = await execute();
 
-    try {
-      // 调用后端 API 获取交易数据
-      const response = await fetch("/api/transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to build transaction");
-      }
-
-      const { transactions } = await response.json();
-
-      if (transactions && transactions.length > 0) {
-        const tx = transactions[0];
-        // 发送交易
-        sendTransaction(
-          {
-            to: tx.to,
-            data: tx.data,
-            value: BigInt(tx.value || 0),
-          },
-          {
-            onSuccess: (hash) => {
-              setTxHash(hash);
-            },
-            onError: (err) => {
-              setError(err.message);
-              setIsExecuting(false);
-            },
-          }
-        );
-      }
-    } catch (err: any) {
-      setError(err.message || "Transaction failed");
-      setIsExecuting(false);
+    // 通知父组件执行完成
+    if (onExecutionComplete) {
+      onExecutionComplete(result.success, result.txHashes);
     }
   };
+
+  // 监听交易成功状态
+  useEffect(() => {
+    if (isSuccess && onExecutionComplete && currentTxHash) {
+      onExecutionComplete(true, [currentTxHash]);
+    }
+  }, [isSuccess, currentTxHash, onExecutionComplete]);
 
   // 状态徽章
   const getStatusBadge = () => {
@@ -131,8 +97,8 @@ export function TransactionCard({ intent }: TransactionCardProps) {
     if (isConfirming) {
       return <Badge variant="warning">Confirming...</Badge>;
     }
-    if (txHash) {
-      return <Badge variant="secondary">Pending</Badge>;
+    if (isExecuting) {
+      return <Badge variant="secondary">Executing</Badge>;
     }
     if (error) {
       return <Badge variant="destructive">Failed</Badge>;
@@ -162,23 +128,26 @@ export function TransactionCard({ intent }: TransactionCardProps) {
 
           {/* Action Button */}
           <div className="flex items-center gap-2">
-            {txHash && (
+            {currentTxHash && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() =>
-                  window.open(
-                    `https://sepolia.basescan.org/tx/${txHash}`,
-                    "_blank"
-                  )
-                }
+                onClick={() => {
+                  const explorerUrls: Record<number, string> = {
+                    11155111: "https://sepolia.etherscan.io",
+                    84532: "https://sepolia.basescan.org",
+                    421614: "https://sepolia.arbiscan.io",
+                  };
+                  const explorerUrl = explorerUrls[chainId || 11155111] || "https://sepolia.etherscan.io";
+                  window.open(`${explorerUrl}/tx/${currentTxHash}`, "_blank");
+                }}
               >
                 <ExternalLink className="h-4 w-4" />
               </Button>
             )}
 
-            {!txHash && !isSuccess && intent.type !== "check_balance" && (
+            {!currentTxHash && !isSuccess && intent.type !== "check_balance" && (
               <Button
                 size="sm"
                 onClick={handleExecute}

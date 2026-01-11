@@ -13,6 +13,8 @@ export interface BaseMessage {
   content: string;
   timestamp: number;
   status?: MessageStatus;
+
+  
 }
 
 // 用户消息
