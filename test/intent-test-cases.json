@@ -1,6 +1,6 @@
 {
-  "version": "2.0",
-  "lastUpdated": "2026-01-11",
+  "version": "2.1",
+  "lastUpdated": "2026-01-13",
   "description": "Intent Bot 意图识别测试用例集 - Monad + Curvance",
   "network": "Monad Testnet",
   "lendingProtocol": "Curvance",
@@ -47,6 +47,47 @@
       }
     },
     {
+      "id": "swap-004",
+      "category": "swap",
+      "input": "Buy 100 MON with USDC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDC",
+          "toToken": "MON",
+          "amount": "100"
+        }
+      }
+    },
+    {
+      "id": "swap-005",
+      "category": "swap",
+      "input": "Exchange 0.5 WMON for USDT with 1% slippage",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "WMON",
+          "toToken": "USDT",
+          "amount": "0.5"
+        }
+      }
+    },
+    {
+      "id": "swap-006",
+      "category": "swap",
+      "input": "把我的 USDT 都换成 MON",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDT",
+          "toToken": "MON"
+        }
+      }
+    },
+    {
       "id": "supply-001",
       "category": "supply",
       "input": "把 0.5 个 MON 存到 Curvance",
@@ -86,6 +127,32 @@
       }
     },
     {
+      "id": "supply-004",
+      "category": "supply",
+      "input": "Lend 500 USDT to earn interest",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_curvance",
+        "params": {
+          "token": "USDT",
+          "amount": "500"
+        }
+      }
+    },
+    {
+      "id": "supply-005",
+      "category": "supply",
+      "input": "存一半的 MON 到 Curvance 赚利息",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "supply_to_curvance",
+        "params": {
+          "token": "MON",
+          "amount": "half"
+        }
+      }
+    },
+    {
       "id": "withdraw-001",
       "category": "withdraw",
       "input": "从 Curvance 提取我所有的 USDC",
@@ -107,6 +174,31 @@
         "params": {
           "token": "MON",
           "amount": "0.2"
+        }
+      }
+    },
+    {
+      "id": "withdraw-003",
+      "category": "withdraw",
+      "input": "Redeem all my USDT from the lending pool",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_curvance",
+        "params": {
+          "token": "USDT",
+          "amount": "all"
+        }
+      }
+    },
+    {
+      "id": "withdraw-004",
+      "category": "withdraw",
+      "input": "把 Curvance 里的 DAI 全部取出来",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "withdraw_from_curvance",
+        "params": {
+          "token": "DAI"
         }
       }
     },
@@ -139,6 +231,34 @@
       }
     },
     {
+      "id": "transfer-003",
+      "category": "transfer",
+      "input": "转 0.1 MON 给 0x742d35Cc6634C0532925a3b844Bc9e7595f3f3A3",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "MON",
+          "amount": "0.1",
+          "to": "0x742d35Cc6634C0532925a3b844Bc9e7595f3f3A3"
+        }
+      }
+    },
+    {
+      "id": "transfer-004",
+      "category": "transfer",
+      "input": "Pay 25 USDT to 0xdead000000000000000000000000000000000001",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "USDT",
+          "amount": "25",
+          "to": "0xdead000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
       "id": "balance-001",
       "category": "balance",
       "input": "查看我的余额",
@@ -157,6 +277,28 @@
         "intentType": "check_balance",
         "params": {
           "token": "MON"
+        }
+      }
+    },
+    {
+      "id": "balance-003",
+      "category": "balance",
+      "input": "Show me my portfolio",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {}
+      }
+    },
+    {
+      "id": "balance-004",
+      "category": "balance",
+      "input": "我有多少 USDC？",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "check_balance",
+        "params": {
+          "token": "USDC"
         }
       }
     },
@@ -197,12 +339,39 @@
       }
     },
     {
+      "id": "chat-005",
+      "category": "general_chat",
+      "input": "What is DeFi and how does yield farming work?",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["DeFi", "yield", "interest", "earn", "protocol"]
+      }
+    },
+    {
       "id": "offtopic-001",
       "category": "off_topic",
       "input": "今天天气怎么样？",
       "expected": {
         "hasIntent": false,
         "responseContains": ["抱歉", "无法", "不能", "天气"]
+      }
+    },
+    {
+      "id": "offtopic-002",
+      "category": "off_topic",
+      "input": "Should I invest in Apple stock?",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["sorry", "stock", "crypto", "cannot", "can't", "不能", "抱歉"]
+      }
+    },
+    {
+      "id": "offtopic-003",
+      "category": "off_topic",
+      "input": "帮我写一首诗",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["抱歉", "不能", "无法", "帮助", "交易"]
       }
     },
     {
@@ -213,6 +382,78 @@
         "hasIntent": false,
         "responseContains": ["什么", "帮", "操作", "想"]
       }
+    },
+    {
+      "id": "unclear-002",
+      "category": "unclear",
+      "input": "swap some tokens",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["which", "what", "token", "哪", "什么", "amount", "多少"]
+      }
+    },
+    {
+      "id": "unclear-003",
+      "category": "unclear",
+      "input": "我想存钱",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["多少", "哪", "什么", "代币", "token", "amount"]
+      }
+    },
+    {
+      "id": "edge-001",
+      "category": "edge_cases",
+      "input": "Swap 100 USDC to MON and then deposit to Curvance",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "USDC",
+          "toToken": "MON",
+          "amount": "100"
+        }
+      },
+      "note": "Multi-step: should handle first intent, may mention second step"
+    },
+    {
+      "id": "edge-002",
+      "category": "edge_cases",
+      "input": "Transfer 10 SHIB to 0x1234567890abcdef1234567890abcdef12345678",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "transfer_token",
+        "params": {
+          "token": "SHIB",
+          "amount": "10"
+        }
+      },
+      "note": "Unsupported token - intent recognized but execution will fail"
+    },
+    {
+      "id": "edge-003",
+      "category": "edge_cases",
+      "input": "Swap 0.000001 MON to USDC",
+      "expected": {
+        "hasIntent": true,
+        "intentType": "swap_tokens",
+        "params": {
+          "fromToken": "MON",
+          "toToken": "USDC",
+          "amount": "0.000001"
+        }
+      },
+      "note": "Very small amount - should still parse correctly"
+    },
+    {
+      "id": "edge-004",
+      "category": "edge_cases",
+      "input": "Send MON to 0xinvalid",
+      "expected": {
+        "hasIntent": false,
+        "responseContains": ["address", "valid", "invalid", "地址", "格式"]
+      },
+      "note": "Invalid address format - should ask for correct address"
     }
   ]
 }

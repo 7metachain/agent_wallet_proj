@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { intentTools } from "@/lib/ai/tools";
 import { v4 as uuidv4 } from "uuid";
+import { createPublicClient, http, formatEther } from "viem";
+import { monadTestnet } from "@/lib/web3/chains";
 
 // Mock 模式标识
 const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
@@ -100,11 +102,60 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 如果识别到 check_balance 意图，查询真实余额
+    const balanceIntent = intents.find((intent) => intent.type === "check_balance");
+    let finalMessage = assistantMessage.content || generateIntentSummary(intents);
+
+    if (balanceIntent && walletAddress) {
+      try {
+        // 验证钱包地址格式
+        if (!walletAddress.startsWith('0x') || walletAddress.length !== 42) {
+          throw new Error(`Invalid wallet address format: ${walletAddress}`);
+        }
+
+        // 创建公共客户端查询余额
+        const publicClient = createPublicClient({
+          chain: monadTestnet,
+          transport: http(monadTestnet.rpcUrls.default.http[0], {
+            timeout: 10000, // 10 秒超时
+          }),
+        });
+
+        // 查询原生代币 (MON) 余额
+        const nativeBalance = await publicClient.getBalance({
+          address: walletAddress as `0x${string}`,
+        });
+
+        const formattedBalance = formatEther(nativeBalance);
+        const displayAmount = parseFloat(formattedBalance).toFixed(4).replace(/\.?0+$/, '');
+
+        // 如果指定了特定 token，可以在这里添加查询逻辑
+        // TODO: 当 Token 地址更新后，添加 ERC20 余额查询
+
+        finalMessage = `📊 **您的钱包余额 (Monad Testnet):**\n\n• **MON**: ${displayAmount} MON\n\n*实时查询结果*`;
+      } catch (error: any) {
+        console.error("Error fetching balance:", error);
+        // 提供更详细的错误信息
+        const errorMessage = error?.message || String(error) || 'Unknown error';
+        const isNetworkError = errorMessage.includes('fetch') || 
+                              errorMessage.includes('timeout') || 
+                              errorMessage.includes('network') ||
+                              errorMessage.includes('ECONNREFUSED') ||
+                              errorMessage.includes('ENOTFOUND');
+        
+        if (isNetworkError) {
+          finalMessage = `📊 **余额查询**\n\n⚠️ 无法连接到 Monad Testnet RPC，请检查网络连接。\n\n*提示：您可以稍后重试，或使用 Mock 模式进行测试。*`;
+        } else {
+          finalMessage = `📊 **余额查询**\n\n⚠️ 查询失败：${errorMessage}\n\n*请稍后重试*`;
+        }
+      }
+    }
+
     // 返回响应
     return NextResponse.json({
-      message: assistantMessage.content || generateIntentSummary(intents),
+      message: finalMessage,
       intents,
-      needsConfirmation: intents.length > 0,
+      needsConfirmation: intents.length > 0 && !balanceIntent, // 余额查询不需要确认
     });
   } catch (error: any) {
     console.error("Chat API error:", error);
@@ -302,7 +353,7 @@ function generateMockResponse(message: string): {
     lowerMessage.includes("查")
   ) {
     return {
-      message: `📊 **[Mock Mode]** Here's your wallet balance on Monad:\n\n• MON: 10.5 MON\n• USDC: 500 USDC\n• DAI: 100 DAI\n\n*Note: This is mock data for testing.*`,
+      message: `📊 **您的钱包余额 (Monad Testnet):**\n\n• **MON**: 10.5 MON\n• **USDC**: 500 USDC\n• **DAI**: 100 DAI\n\n*Mock 模式 - 测试数据*`,
       intents: [
         {
           id: uuidv4(),

@@ -32,7 +32,7 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
       symbol: "USDC",
       name: "USD Coin",
       decimals: 6,
-      address: "0x0000000000000000000000000000000000000002" as Address, // Placeholder
+      address: "0xEbaE6CA454De1D446eda9052ffD9AFCAb1E518C6" as Address, // Placeholder
       logoURI: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
     },
     USDT: {

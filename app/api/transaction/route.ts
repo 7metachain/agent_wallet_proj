@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encodeFunctionData, parseUnits, Address } from "viem";
 import { Intent } from "@/types/intent";
-import { getTokenBySymbol, MONAD_TESTNET_CHAIN_ID } from "@/lib/web3/tokens";
+import { getTokenBySymbol, MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } from "@/lib/web3/tokens";
 import { erc20Abi } from "@/lib/web3/abi/erc20";
 import { buildSupplyTx, buildWithdrawTx } from "@/lib/web3/curvance";
-
-// Monad DEX Router 地址 (占位符，待实际部署后更新)
-const SWAP_ROUTER_ADDRESS = "0x0000000000000000000000000000000000000200"; // Monad DEX Router
+import { MOCK_DEX_ADDRESS, MOCK_DEX_ABI, NATIVE_TOKEN_ADDRESS } from "@/lib/web3/abi/dex";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,13 +55,19 @@ async function buildTransactions(
       }
 
       const amountIn = parseUnits(amount, fromTokenInfo.decimals);
+      const isFromNative = fromToken.toUpperCase() === "MON";
+      const isToNative = toToken.toUpperCase() === "MON";
 
-      // 如果不是 MON (原生代币)，需要先 approve
-      if (fromToken.toUpperCase() !== "MON") {
+      // 确定代币地址
+      const fromTokenAddress = isFromNative ? NATIVE_TOKEN_ADDRESS : fromTokenInfo.address;
+      const toTokenAddress = isToNative ? NATIVE_TOKEN_ADDRESS : toTokenInfo.address;
+
+      // 如果源代币是 ERC20，需要先 approve
+      if (!isFromNative) {
         const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [SWAP_ROUTER_ADDRESS as Address, amountIn],
+          args: [MOCK_DEX_ADDRESS as Address, amountIn],
         });
 
         transactions.push({
@@ -76,26 +80,83 @@ async function buildTransactions(
         });
       }
 
-      // Swap 交易 (Monad DEX - 待集成实际 DEX 协议)
-      transactions.push({
-        id: `${intent.id}-swap`,
-        type: "swap",
-        to: SWAP_ROUTER_ADDRESS as Address,
-        data: "0x", // 需要实际的 swap calldata
-        value: fromToken.toUpperCase() === "MON" ? amountIn.toString() : "0",
-        description: `Swap ${amount} ${fromToken} to ${toToken}`,
-      });
+      // 构建 Swap 交易
+      if (isFromNative) {
+        // MON → ERC20: 使用 swapNativeForToken
+        const swapData = encodeFunctionData({
+          abi: MOCK_DEX_ABI,
+          functionName: "swapNativeForToken",
+          args: [
+            toTokenAddress as Address, // toToken
+            BigInt(0), // minAmountOut (0 = 不限制滑点，演示用)
+            walletAddress as Address, // recipient
+          ],
+        });
+
+        transactions.push({
+          id: `${intent.id}-swap`,
+          type: "swap",
+          to: MOCK_DEX_ADDRESS as Address,
+          data: swapData,
+          value: amountIn.toString(),
+          description: `Swap ${amount} ${fromToken} → ${toToken}`,
+        });
+      } else if (isToNative) {
+        // ERC20 → MON: 使用 swapTokenForNative
+        const swapData = encodeFunctionData({
+          abi: MOCK_DEX_ABI,
+          functionName: "swapTokenForNative",
+          args: [
+            fromTokenAddress as Address, // fromToken
+            amountIn, // amountIn
+            BigInt(0), // minAmountOut
+            walletAddress as Address, // recipient
+          ],
+        });
+
+        transactions.push({
+          id: `${intent.id}-swap`,
+          type: "swap",
+          to: MOCK_DEX_ADDRESS as Address,
+          data: swapData,
+          value: "0",
+          description: `Swap ${amount} ${fromToken} → ${toToken}`,
+        });
+      } else {
+        // ERC20 → ERC20: 使用 swapTokenForToken
+        const swapData = encodeFunctionData({
+          abi: MOCK_DEX_ABI,
+          functionName: "swapTokenForToken",
+          args: [
+            fromTokenAddress as Address, // fromToken
+            toTokenAddress as Address, // toToken
+            amountIn, // amountIn
+            BigInt(0), // minAmountOut
+            walletAddress as Address, // recipient
+          ],
+        });
+
+        transactions.push({
+          id: `${intent.id}-swap`,
+          type: "swap",
+          to: MOCK_DEX_ADDRESS as Address,
+          data: swapData,
+          value: "0",
+          description: `Swap ${amount} ${fromToken} → ${toToken}`,
+        });
+      }
       break;
     }
 
     case "supply": {
       const { token, amount } = intent.params;
       
-      // 使用 Curvance 协议构建 supply 交易
+      // 使用 Lending Pool 构建 supply 交易 (Mock on Testnet, Curvance on Mainnet)
       const supplyTxs = await buildSupplyTx({
         token,
         amount,
         userAddress: walletAddress as Address,
+        chainId,
       });
 
       transactions.push(...supplyTxs);
@@ -105,11 +166,12 @@ async function buildTransactions(
     case "withdraw": {
       const { token, amount } = intent.params;
       
-      // 使用 Curvance 协议构建 withdraw 交易
+      // 使用 Lending Pool 构建 withdraw 交易 (Mock on Testnet, Curvance on Mainnet)
       const withdrawTxs = await buildWithdrawTx({
         token,
         amount,
         userAddress: walletAddress as Address,
+        chainId,
       });
 
       transactions.push(...withdrawTxs);
@@ -166,4 +228,3 @@ async function buildTransactions(
 
   return transactions;
 }
-

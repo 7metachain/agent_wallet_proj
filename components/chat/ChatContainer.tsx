@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { WelcomeScreen } from "./WelcomeScreen";
@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export function ChatContainer() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,7 +51,7 @@ export function ChatContainer() {
         body: JSON.stringify({
           message: content,
           walletAddress: address,
-          chainId: 84532, // Base Sepolia
+          chainId: chainId, // 使用当前连接的链 ID
           history: messages.slice(-10), // 只发送最近10条消息
         }),
       });

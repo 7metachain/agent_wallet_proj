@@ -1,44 +1,33 @@
 import { http } from "wagmi";
-import { defineChain } from "viem";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-
-// 定义 Monad Testnet 链配置
-export const monadTestnet = defineChain({
-  id: 10143,
-  name: "Monad Testnet",
-  nativeCurrency: {
-    name: "Monad",
-    symbol: "MON",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://testnet-rpc.monad.xyz"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Monad Explorer",
-      url: "https://testnet.monadexplorer.com",
-    },
-  },
-  testnet: true,
-});
+import { 
+  monadMainnet, 
+  monadTestnet, 
+  MONAD_MAINNET_CHAIN_ID, 
+  MONAD_TESTNET_CHAIN_ID 
+} from "./chains";
 
 // 使用 RainbowKit 的 getDefaultConfig 简化配置
+// 支持 Monad Mainnet (Curvance) 和 Testnet
 export const config = getDefaultConfig({
   appName: "Intent Bot",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
-  chains: [monadTestnet],
+  chains: [monadMainnet, monadTestnet],
   transports: {
+    [monadMainnet.id]: http(),
     [monadTestnet.id]: http(),
   },
   ssr: true,
 });
 
 // 导出支持的链
-export const supportedChains = [monadTestnet] as const;
+export const supportedChains = [monadMainnet, monadTestnet] as const;
 export type SupportedChainId = (typeof supportedChains)[number]["id"];
 
-// Monad Testnet Chain ID
-export const MONAD_TESTNET_CHAIN_ID = 10143;
+// 重新导出链定义（保持向后兼容）
+export { 
+  monadMainnet, 
+  monadTestnet, 
+  MONAD_MAINNET_CHAIN_ID, 
+  MONAD_TESTNET_CHAIN_ID 
+} from "./chains";

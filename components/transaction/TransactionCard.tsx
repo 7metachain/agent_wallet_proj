@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useChainId } from "wagmi";
 import { Intent } from "@/types/intent";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { monadTestnet } from "@/lib/web3/config";
 import {
   ArrowRightLeft,
   PiggyBank,
@@ -33,14 +34,15 @@ const intentIcons = {
 
 const intentLabels = {
   swap: "Swap",
-  supply: "Supply to Aave",
-  withdraw: "Withdraw from Aave",
+  supply: "Supply to Curvance",
+  withdraw: "Withdraw from Curvance",
   transfer: "Transfer",
   check_balance: "Check Balance",
 };
 
 export function TransactionCard({ intent }: TransactionCardProps) {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const chainId = useChainId();
   const [isExecuting, setIsExecuting] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,11 @@ export function TransactionCard({ intent }: TransactionCardProps) {
       const response = await fetch("/api/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent }),
+        body: JSON.stringify({ 
+          intent,
+          walletAddress: address,
+          chainId,
+        }),
       });
 
       if (!response.ok) {
@@ -169,7 +175,7 @@ export function TransactionCard({ intent }: TransactionCardProps) {
                 className="h-8 w-8"
                 onClick={() =>
                   window.open(
-                    `https://sepolia.basescan.org/tx/${txHash}`,
+                    `${monadTestnet.blockExplorers.default.url}/tx/${txHash}`,
                     "_blank"
                   )
                 }
