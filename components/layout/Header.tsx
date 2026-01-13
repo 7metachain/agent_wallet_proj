@@ -12,7 +12,7 @@ export function Header() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
-          <span className="text-xl font-bold gradient-text">Intent Bot</span>
+          <span className="text-xl font-bold gradient-text">Monad Intent Bot</span>
         </div>
 
         {/* Wallet Connect Button */}

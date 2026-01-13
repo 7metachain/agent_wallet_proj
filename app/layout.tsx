@@ -14,9 +14,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Intent Bot - AI-Powered Web3 Trading",
+  title: "Monad Intent Bot - AI-Powered Trading on Monad",
   description:
-    "Trade, swap, and earn yield using natural language. Let AI handle the complexity of Web3.",
+    "Trade on Monad using natural language. Experience 10,000 TPS and 0.8s finality with AI-powered intent execution.",
   icons: {
     icon: "/favicon.ico",
   },

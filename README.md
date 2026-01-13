@@ -1,14 +1,21 @@
-# Intent Bot - AI-Powered Web3 Trading
+# Monad Intent Bot - AI-Powered Trading on Monad
 
-基于意图的交易机器人，用户通过自然语言描述交易意图，AI 自动解析并构建链上交易。
+基于意图的交易机器人，专为 Monad 生态打造。用户通过自然语言描述交易意图，AI 自动解析并构建链上交易。
+
+## 🚀 Why Monad?
+
+- ⚡ **10,000 TPS** - 超高性能区块链
+- 🎯 **0.8s Finality** - 快速交易确认
+- 🔧 **Full EVM Compatibility** - 完全兼容以太坊工具链
+- 💰 **Low Gas Fees** - 相比主网大幅降低交易成本
 
 ## ✨ Features
 
 - 🤖 **Natural Language Trading** - 用自然语言描述你想做的事
-- 💱 **Token Swap** - 支持 Token 兑换
-- 🏦 **Aave Integration** - 存入/取出 Aave 赚取收益
-- 💸 **Token Transfer** - 发送 Token 到任意地址
-- 📊 **Balance Check** - 查询钱包余额
+- 💱 **Token Swap** - 在 Monad 上兑换 MON、WMON、USDC 等代币
+- 🏦 **Native Staking** - 质押 MON 到验证者节点赚取收益（每区块 25 MON 奖励）
+- 💸 **Token Transfer** - 在 Monad 上发送 Token 到任意地址
+- 📊 **Balance Check** - 查询 Monad 钱包余额
 
 ## 🚀 Quick Start
 
@@ -128,8 +135,9 @@ docker run -p 3000:3000 -e OPENAI_API_KEY=xxx -e NEXT_PUBLIC_WALLETCONNECT_PROJE
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **Styling**: Tailwind CSS, shadcn/ui
 - **Web3**: wagmi v2, viem, RainbowKit
+- **Blockchain**: Monad (Chain ID: 143 for Mainnet, 10143 for Testnet)
 - **AI**: OpenAI GPT-4o, Function Calling
-- **Protocols**: Uniswap, Aave V3
+- **Protocols**: Uniswap v4 on Monad, Monad Native Staking
 
 ## 📁 Project Structure
 
@@ -186,17 +194,39 @@ npm run lint     # 运行 ESLint
 
 ## 🌐 Supported Networks
 
-- Ethereum Sepolia
-- Base Sepolia
-- Arbitrum Sepolia
+- **Monad Mainnet** (Chain ID: 143)
+  - RPC: https://rpc.monad.xyz
+  - Explorer: https://monadvision.com
+
+- **Monad Testnet** (Chain ID: 10143)
+  - RPC: https://testnet.monad.xyz
+  - Explorer: https://testnet.monadexplorer.com
+  - Faucet: https://faucet.monad.xyz
+
+## 🪙 Supported Tokens
+
+### Monad Mainnet
+- MON (Native token)
+- WMON (Wrapped MON): `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`
+- USDC, USDT, WETH, WBTC
+
+### Monad Testnet
+- MON (Testnet tokens from faucet)
+- WMON: `0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701`
+- Get testnet tokens:
+  - [Monad Faucet](https://faucet.monad.xyz)
+  - [QuickNode Faucet](https://faucet.quicknode.com/monad/testnet)
+  - Nabla Discord Faucet for USDC/USDT/WETH/WBTC
 
 ## 🔗 Resources
 
+- [Monad Official Website](https://www.monad.xyz)
+- [Monad Documentation](https://docs.monad.xyz)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [wagmi Documentation](https://wagmi.sh)
 - [RainbowKit Documentation](https://rainbowkit.com)
 - [OpenAI API Reference](https://platform.openai.com/docs)
-- [Aave V3 Documentation](https://docs.aave.com)
+- [Uniswap on Monad](https://blog.uniswap.org/monad-mainnet-is-now-live-on-uniswap)
 
 ## 📄 License
 

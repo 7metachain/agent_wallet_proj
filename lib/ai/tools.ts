@@ -15,22 +15,34 @@ export const swapTokensSchema = z.object({
     .describe("Slippage tolerance in percentage, default 0.5"),
 });
 
-// Supply to Aave 参数 Schema
-export const supplyToAaveSchema = z.object({
-  token: z
-    .string()
-    .describe("The token symbol to supply (e.g., 'ETH', 'USDC')"),
+// Stake to Monad 参数 Schema
+export const stakeMonadSchema = z.object({
   amount: z
     .string()
-    .describe("The amount to supply, can be a number or 'half', 'all'"),
+    .describe("The amount of MON to stake, can be a number or 'half', 'all'"),
+  validator: z
+    .string()
+    .optional()
+    .describe("Validator address to delegate to (optional, will use default if not specified)"),
 });
 
-// Withdraw from Aave 参数 Schema
-export const withdrawFromAaveSchema = z.object({
-  token: z.string().describe("The token symbol to withdraw"),
+// Unstake from Monad 参数 Schema
+export const unstakeMonadSchema = z.object({
   amount: z
     .string()
-    .describe("The amount to withdraw, 'max' for full balance"),
+    .describe("The amount of MON to unstake, 'max' for full balance"),
+  validator: z
+    .string()
+    .optional()
+    .describe("Validator address to undelegate from (optional)"),
+});
+
+// Claim Rewards 参数 Schema
+export const claimRewardsSchema = z.object({
+  validator: z
+    .string()
+    .optional()
+    .describe("Validator address to claim rewards from (optional, will use default if not specified)"),
 });
 
 // Transfer Token 参数 Schema
@@ -83,45 +95,63 @@ export const intentTools = [
   {
     type: "function" as const,
     function: {
-      name: "supply_to_aave",
+      name: "stake_monad",
       description:
-        "Supply/deposit tokens to Aave lending protocol to earn interest. Use when user wants to deposit, supply, lend, or earn yield.",
+        "Stake MON tokens to Monad validators to earn staking rewards. Use when user wants to stake, delegate, or earn staking yield.",
       parameters: {
         type: "object",
         properties: {
-          token: {
-            type: "string",
-            description: "The token symbol to supply (e.g., 'ETH', 'USDC')",
-          },
           amount: {
             type: "string",
             description:
-              "The amount to supply, can be a number or 'half', 'all'",
+              "The amount of MON to stake, can be a number or 'half', 'all'",
+          },
+          validator: {
+            type: "string",
+            description: "Validator address to delegate to (optional, will use default if not specified)",
           },
         },
-        required: ["token", "amount"],
+        required: ["amount"],
       },
     },
   },
   {
     type: "function" as const,
     function: {
-      name: "withdraw_from_aave",
+      name: "unstake_monad",
       description:
-        "Withdraw tokens from Aave lending protocol. Use when user wants to withdraw or retrieve their deposited assets.",
+        "Unstake/undelegate MON tokens from Monad validators. Use when user wants to unstake, undelegate, or retrieve their staked MON.",
       parameters: {
         type: "object",
         properties: {
-          token: {
-            type: "string",
-            description: "The token symbol to withdraw",
-          },
           amount: {
             type: "string",
-            description: "The amount to withdraw, 'max' for full balance",
+            description: "The amount of MON to unstake, 'max' for full balance",
+          },
+          validator: {
+            type: "string",
+            description: "Validator address to undelegate from (optional)",
           },
         },
-        required: ["token", "amount"],
+        required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "claim_rewards",
+      description:
+        "Claim staking rewards from Monad validators to wallet. Use when user wants to claim, collect, withdraw, or retrieve their staking rewards/earnings.",
+      parameters: {
+        type: "object",
+        properties: {
+          validator: {
+            type: "string",
+            description: "Validator address to claim rewards from (optional, will use default if not specified)",
+          },
+        },
+        required: [],
       },
     },
   },
@@ -174,8 +204,9 @@ export const intentTools = [
 // Intent 类型定义
 export type IntentType =
   | "swap"
-  | "supply"
-  | "withdraw"
+  | "stake"
+  | "unstake"
+  | "claim_rewards"
   | "transfer"
   | "check_balance";
 

@@ -3,8 +3,9 @@ import { Address } from "viem";
 // 意图类型
 export type IntentType =
   | "swap"
-  | "supply"
-  | "withdraw"
+  | "stake"
+  | "unstake"
+  | "claim_rewards"
   | "transfer"
   | "check_balance";
 
@@ -35,22 +36,29 @@ export interface SwapIntent extends BaseIntent {
   };
 }
 
-// Supply 意图
-export interface SupplyIntent extends BaseIntent {
-  type: "supply";
+// Stake 意图
+export interface StakeIntent extends BaseIntent {
+  type: "stake";
   params: {
-    token: string;
     amount: string;
-    useAsCollateral?: boolean;
+    validator?: string;
   };
 }
 
-// Withdraw 意图
-export interface WithdrawIntent extends BaseIntent {
-  type: "withdraw";
+// Unstake 意图
+export interface UnstakeIntent extends BaseIntent {
+  type: "unstake";
   params: {
-    token: string;
     amount: string;
+    validator?: string;
+  };
+}
+
+// Claim Rewards 意图
+export interface ClaimRewardsIntent extends BaseIntent {
+  type: "claim_rewards";
+  params: {
+    validator?: string;
   };
 }
 
@@ -75,8 +83,9 @@ export interface CheckBalanceIntent extends BaseIntent {
 // 意图联合类型
 export type Intent =
   | SwapIntent
-  | SupplyIntent
-  | WithdrawIntent
+  | StakeIntent
+  | UnstakeIntent
+  | ClaimRewardsIntent
   | TransferIntent
   | CheckBalanceIntent;
 
@@ -84,8 +93,9 @@ export type Intent =
 export type TransactionType =
   | "approve"
   | "swap"
-  | "supply"
-  | "withdraw"
+  | "stake"
+  | "unstake"
+  | "claim_rewards"
   | "transfer";
 
 // 准备好的交易

@@ -8,6 +8,7 @@ import {
   SendHorizontal,
   Wallet,
   Sparkles,
+  Coins,
 } from "lucide-react";
 
 interface WelcomeScreenProps {
@@ -19,25 +20,31 @@ const examples = [
   {
     icon: ArrowRightLeft,
     title: "Swap Tokens",
-    description: "Exchange one token for another",
-    prompt: "Swap 100 USDC to ETH",
+    description: "Exchange tokens on Monad",
+    prompt: "Swap 100 USDC to MON",
   },
   {
     icon: PiggyBank,
-    title: "Earn Yield",
-    description: "Deposit to Aave and earn interest",
-    prompt: "Supply 0.1 ETH to Aave",
+    title: "Stake MON",
+    description: "Stake to earn rewards",
+    prompt: "Stake 10 MON",
+  },
+  {
+    icon: Coins,
+    title: "Claim Rewards",
+    description: "Claim staking earnings",
+    prompt: "Claim my staking rewards",
   },
   {
     icon: SendHorizontal,
     title: "Transfer",
-    description: "Send tokens to any address",
-    prompt: "Send 50 USDC to vitalik.eth",
+    description: "Send tokens on Monad",
+    prompt: "Send 50 USDC to 0x...",
   },
   {
     icon: Wallet,
     title: "Check Balance",
-    description: "View your token holdings",
+    description: "View your Monad holdings",
     prompt: "What's my balance?",
   },
 ];
@@ -56,11 +63,11 @@ export function WelcomeScreen({
           </div>
         </div>
         <h1 className="text-3xl font-bold gradient-text mb-2">
-          Welcome to Intent Bot
+          Welcome to Monad Intent Bot
         </h1>
         <p className="text-muted-foreground max-w-md">
-          Trade, swap, and earn yield using natural language. <br />
-          Just tell me what you want to do!
+          Trade on Monad using natural language. <br />
+          10,000 TPS • 0.8s finality • Lightning-fast transactions
         </p>
       </div>
 

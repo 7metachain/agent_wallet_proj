@@ -13,6 +13,7 @@
     "jsx": "preserve",
     "incremental": true,
     "tsBuildInfoFile": ".next/tsbuildinfo",
+    "sourceMap": true,
     "plugins": [
       {
         "name": "next"

@@ -3,12 +3,10 @@ import { encodeFunctionData, parseUnits } from "viem";
 import { Intent } from "@/types/intent";
 import { getTokenBySymbol } from "@/lib/web3/tokens";
 import { erc20Abi } from "@/lib/web3/abi/erc20";
+import { monadStakingAbi, MONAD_STAKING_ADDRESS, DEFAULT_VALIDATOR_ADDRESS } from "@/lib/web3/abi/monad-staking";
 
-// Uniswap V3 Router 地址 (示例)
-const SWAP_ROUTER_ADDRESS = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"; // Sepolia UniswapV3 Router
-
-// Aave V3 Pool 地址 (示例)
-const AAVE_POOL_ADDRESS = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951"; // Sepolia Aave V3 Pool
+// Uniswap V3 Router 地址 (需要更新为 Monad 上的地址)
+const SWAP_ROUTER_ADDRESS = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"; // TODO: Update to Monad Uniswap address
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,57 +89,70 @@ async function buildTransactions(
       break;
     }
 
-    case "supply": {
-      const { token, amount } = intent.params;
-      const tokenInfo = getTokenBySymbol(chainId, token);
+    case "stake": {
+      const { amount, validator } = intent.params;
+      const amountToStake = parseUnits(amount, 18); // MON has 18 decimals
+      const validatorAddress = (validator || DEFAULT_VALIDATOR_ADDRESS) as `0x${string}`;
 
-      if (!tokenInfo) {
-        throw new Error(`Token not found: ${token}`);
-      }
+      // Encode delegate function call
+      const delegateData = encodeFunctionData({
+        abi: monadStakingAbi,
+        functionName: "delegate",
+        args: [validatorAddress],
+      });
 
-      const amountToSupply = parseUnits(amount, tokenInfo.decimals);
-
-      // 如果不是 ETH，需要先 approve
-      if (token.toUpperCase() !== "ETH") {
-        const approveData = encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [AAVE_POOL_ADDRESS, amountToSupply],
-        });
-
-        transactions.push({
-          id: `${intent.id}-approve`,
-          type: "approve",
-          to: tokenInfo.address,
-          data: approveData,
-          value: "0",
-          description: `Approve ${amount} ${token} for Aave`,
-        });
-      }
-
-      // Supply 到 Aave (简化版本)
-      // 实际需要调用 Aave Pool 的 supply 方法
       transactions.push({
-        id: `${intent.id}-supply`,
-        type: "supply",
-        to: AAVE_POOL_ADDRESS,
-        data: "0x", // 需要实际的 supply calldata
-        value: token.toUpperCase() === "ETH" ? amountToSupply.toString() : "0",
-        description: `Supply ${amount} ${token} to Aave`,
+        id: `${intent.id}-stake`,
+        type: "stake",
+        to: MONAD_STAKING_ADDRESS,
+        data: delegateData,
+        value: amountToStake.toString(), // Send MON with the transaction
+        description: `Stake ${amount} MON to validator`,
       });
       break;
     }
 
-    case "withdraw": {
-      const { token, amount } = intent.params;
-      // Withdraw 从 Aave
+    case "unstake": {
+      const { amount, validator } = intent.params;
+      const amountToUnstake = parseUnits(amount, 18); // MON has 18 decimals
+      const validatorAddress = (validator || DEFAULT_VALIDATOR_ADDRESS) as `0x${string}`;
+
+      // Encode undelegate function call
+      const undelegateData = encodeFunctionData({
+        abi: monadStakingAbi,
+        functionName: "undelegate",
+        args: [validatorAddress, amountToUnstake],
+      });
+
       transactions.push({
-        id: `${intent.id}-withdraw`,
-        type: "withdraw",
-        to: AAVE_POOL_ADDRESS,
-        data: "0x", // 需要实际的 withdraw calldata
+        id: `${intent.id}-unstake`,
+        type: "unstake",
+        to: MONAD_STAKING_ADDRESS,
+        data: undelegateData,
         value: "0",
-        description: `Withdraw ${amount} ${token} from Aave`,
+        description: `Unstake ${amount} MON from validator`,
+      });
+      break;
+    }
+
+    case "claim_rewards": {
+      const { validator } = intent.params;
+      const validatorAddress = (validator || DEFAULT_VALIDATOR_ADDRESS) as `0x${string}`;
+
+      // Encode claimRewards function call
+      const claimRewardsData = encodeFunctionData({
+        abi: monadStakingAbi,
+        functionName: "claimRewards",
+        args: [validatorAddress],
+      });
+
+      transactions.push({
+        id: `${intent.id}-claim`,
+        type: "claim_rewards",
+        to: MONAD_STAKING_ADDRESS,
+        data: claimRewardsData,
+        value: "0",
+        description: `Claim staking rewards from validator`,
       });
       break;
     }

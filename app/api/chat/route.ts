@@ -7,10 +7,12 @@ import { v4 as uuidv4 } from "uuid";
 // Mock 模式标识
 const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
-// 初始化 OpenAI 客户端（仅在非 Mock 模式下）
+console.log("MOCK_MODE:", MOCK_MODE);
+// 初始化 OpenAI 兼容客户端（支持 DeepSeek / OpenAI）
 const openai = !MOCK_MODE
   ? new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
     })
   : null;
 
@@ -48,9 +50,11 @@ export async function POST(request: NextRequest) {
       { role: "user", content: message },
     ];
 
-    // 调用 OpenAI API
+      console.log("Received request with messages:", messages);
+
+    // 调用 AI API (支持 OpenAI / DeepSeek)
     const response = await openai!.chat.completions.create({
-      model: "gpt-4o",
+      model: process.env.OPENAI_MODEL || "gpt-4o",
       messages,
       tools: intentTools,
       tool_choice: "auto",
@@ -60,6 +64,8 @@ export async function POST(request: NextRequest) {
 
     const assistantMessage = response.choices[0].message;
     const intents: any[] = [];
+
+    console.log("AI response message:", assistantMessage);
 
     // 解析工具调用
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
@@ -73,11 +79,14 @@ export async function POST(request: NextRequest) {
           case "swap_tokens":
             intentType = "swap";
             break;
-          case "supply_to_aave":
-            intentType = "supply";
+          case "stake_monad":
+            intentType = "stake";
             break;
-          case "withdraw_from_aave":
-            intentType = "withdraw";
+          case "unstake_monad":
+            intentType = "unstake";
+            break;
+          case "claim_rewards":
+            intentType = "claim_rewards";
             break;
           case "transfer_token":
             intentType = "transfer";
@@ -133,10 +142,12 @@ function generateIntentSummary(intents: any[]): string {
     switch (intent.type) {
       case "swap":
         return `Swap ${intent.params.amount} ${intent.params.fromToken} to ${intent.params.toToken}`;
-      case "supply":
-        return `Supply ${intent.params.amount} ${intent.params.token} to Aave`;
-      case "withdraw":
-        return `Withdraw ${intent.params.amount} ${intent.params.token} from Aave`;
+      case "stake":
+        return `Stake ${intent.params.amount} MON to validator`;
+      case "unstake":
+        return `Unstake ${intent.params.amount} MON from validator`;
+      case "claim_rewards":
+        return `Claim staking rewards from validator`;
       case "transfer":
         return `Transfer ${intent.params.amount} ${intent.params.token} to ${intent.params.to}`;
       case "check_balance":
@@ -202,25 +213,22 @@ function generateMockResponse(message: string): {
     };
   }
 
-  // 检测 supply/deposit 意图
+  // 检测 stake 意图
   if (
-    lowerMessage.includes("supply") ||
-    lowerMessage.includes("deposit") ||
-    lowerMessage.includes("存") ||
-    lowerMessage.includes("aave")
+    lowerMessage.includes("stake") ||
+    lowerMessage.includes("质押") ||
+    lowerMessage.includes("staking")
   ) {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
-    const amount = amountMatch ? amountMatch[1] : "0.1";
-    const token = lowerMessage.includes("usdc") ? "USDC" : "ETH";
+    const amount = amountMatch ? amountMatch[1] : "10";
 
     return {
-      message: `🏦 **[Mock Mode]** I'll help you supply ${amount} ${token} to Aave to earn yield.\n\nClick "Execute" to proceed.`,
+      message: `🏦 **[Mock Mode]** I'll help you stake ${amount} MON to earn staking rewards.\n\nClick "Execute" to proceed.`,
       intents: [
         {
           id: uuidv4(),
-          type: "supply",
+          type: "stake",
           params: {
-            token,
             amount,
           },
           status: "ready",
@@ -231,26 +239,49 @@ function generateMockResponse(message: string): {
     };
   }
 
-  // 检测 withdraw 意图
+  // 检测 unstake 意图
   if (
-    lowerMessage.includes("withdraw") ||
-    lowerMessage.includes("取") ||
-    lowerMessage.includes("提取")
+    lowerMessage.includes("unstake") ||
+    lowerMessage.includes("undelegate") ||
+    lowerMessage.includes("取消质押") ||
+    lowerMessage.includes("解除质押")
   ) {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
-    const amount = amountMatch ? amountMatch[1] : "max";
-    const token = lowerMessage.includes("usdc") ? "USDC" : "ETH";
+    const amount = amountMatch ? amountMatch[1] : "all";
 
     return {
-      message: `📤 **[Mock Mode]** I'll help you withdraw ${amount} ${token} from Aave.\n\nClick "Execute" to proceed.`,
+      message: `📤 **[Mock Mode]** I'll help you unstake ${amount} MON from validator.\n\nClick "Execute" to proceed.`,
       intents: [
         {
           id: uuidv4(),
-          type: "withdraw",
+          type: "unstake",
           params: {
-            token,
             amount,
           },
+          status: "ready",
+          createdAt: Date.now(),
+        },
+      ],
+      needsConfirmation: true,
+    };
+  }
+
+  // 检测 claim rewards 意图
+  if (
+    lowerMessage.includes("claim") ||
+    lowerMessage.includes("collect") ||
+    lowerMessage.includes("领取") ||
+    lowerMessage.includes("提取") ||
+    (lowerMessage.includes("收益") && !lowerMessage.includes("质押")) ||
+    lowerMessage.includes("奖励")
+  ) {
+    return {
+      message: `💰 **[Mock Mode]** I'll help you claim your staking rewards from the validator.\n\nClick "Execute" to proceed.`,
+      intents: [
+        {
+          id: uuidv4(),
+          type: "claim_rewards",
+          params: {},
           status: "ready",
           createdAt: Date.now(),
         },
@@ -306,7 +337,7 @@ function generateMockResponse(message: string): {
     lowerMessage.includes("查")
   ) {
     return {
-      message: `📊 **[Mock Mode]** Here's your wallet balance:\n\n• ETH: 0.5 ETH (~$1,250)\n• USDC: 500 USDC\n• DAI: 100 DAI\n\n*Note: This is mock data for testing.*`,
+      message: `📊 **[Mock Mode]** Here's your wallet balance on Monad:\n\n• MON: 100 MON (~$2,500)\n• USDC: 500 USDC\n• WMON: 50 WMON\n\n*Note: This is mock data for testing.*`,
       intents: [
         {
           id: uuidv4(),
@@ -322,7 +353,7 @@ function generateMockResponse(message: string): {
 
   // 默认响应
   return {
-    message: `👋 **[Mock Mode]** I'm Intent Bot! I can help you with:\n\n• **Swap** - "Swap 100 USDC to ETH"\n• **Supply** - "Deposit 0.1 ETH to Aave"\n• **Withdraw** - "Withdraw my USDC from Aave"\n• **Transfer** - "Send 50 USDC to vitalik.eth"\n• **Balance** - "Check my balance"\n\nTry one of these commands!`,
+    message: `👋 **[Mock Mode]** I'm Monad Intent Bot! I can help you with:\n\n• **Swap** - "Swap 100 USDC to MON"\n• **Stake** - "Stake 10 MON"\n• **Unstake** - "Unstake all my MON"\n• **Transfer** - "Send 50 USDC to 0x..."\n• **Balance** - "Check my balance"\n\nTry one of these commands!`,
     intents: [],
     needsConfirmation: false,
   };

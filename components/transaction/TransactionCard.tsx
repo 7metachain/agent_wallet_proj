@@ -25,16 +25,18 @@ interface TransactionCardProps {
 
 const intentIcons = {
   swap: ArrowRightLeft,
-  supply: PiggyBank,
-  withdraw: ArrowUpRight,
+  stake: PiggyBank,
+  unstake: ArrowUpRight,
+  claim_rewards: PiggyBank,
   transfer: SendHorizontal,
   check_balance: Wallet,
 };
 
 const intentLabels = {
   swap: "Swap",
-  supply: "Supply to Aave",
-  withdraw: "Withdraw from Aave",
+  stake: "Stake MON",
+  unstake: "Unstake MON",
+  claim_rewards: "Claim Rewards",
   transfer: "Transfer",
   check_balance: "Check Balance",
 };
@@ -58,10 +60,12 @@ export function TransactionCard({ intent }: TransactionCardProps) {
     switch (intent.type) {
       case "swap":
         return `${intent.params.amount} ${intent.params.fromToken} → ${intent.params.toToken}`;
-      case "supply":
-        return `${intent.params.amount} ${intent.params.token}`;
-      case "withdraw":
-        return `${intent.params.amount} ${intent.params.token}`;
+      case "stake":
+        return `${intent.params.amount} MON`;
+      case "unstake":
+        return `${intent.params.amount} MON`;
+      case "claim_rewards":
+        return "From validator";
       case "transfer":
         return `${intent.params.amount} ${intent.params.token} to ${shortenAddress(intent.params.to)}`;
       case "check_balance":
@@ -169,7 +173,7 @@ export function TransactionCard({ intent }: TransactionCardProps) {
                 className="h-8 w-8"
                 onClick={() =>
                   window.open(
-                    `https://sepolia.basescan.org/tx/${txHash}`,
+                    `https://monadvision.com/tx/${txHash}`,
                     "_blank"
                   )
                 }

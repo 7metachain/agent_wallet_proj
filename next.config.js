@@ -5,6 +5,9 @@ const nextConfig = {
   // Enable SWC minification for faster builds
   swcMinify: true,
 
+  // Enable source maps for debugging
+  productionBrowserSourceMaps: false,
+
   // Optimize compile performance
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -18,9 +21,16 @@ const nextConfig = {
     cpus: Math.max(1, require('os').cpus().length - 1),
   },
 
-  webpack: (config, { isServer }) => {
+  webpack: (config, { dev, isServer }) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
+
+    // Enable source maps in development for debugging
+    if (dev) {
+      // Use source-map for server-side (API routes) to enable proper debugging
+      // Use eval-source-map for client-side for faster rebuilds
+      config.devtool = isServer ? 'source-map' : 'eval-source-map';
+    }
 
     // Optimize webpack for faster compilation
     config.optimization = {
