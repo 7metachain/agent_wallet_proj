@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: assistantMessage.content || generateIntentSummary(intents),
       intents,
-      needsConfirmation: intents.length > 0,
+      needsConfirmation: intents.length > 0 &&
+        intents.some(i => i.type !== "check_balance"),
     });
   } catch (error: any) {
     console.error("Chat API error:", error);
@@ -336,13 +337,16 @@ function generateMockResponse(message: string): {
     lowerMessage.includes("how much") ||
     lowerMessage.includes("查")
   ) {
+    const tokenMatch = message.match(/\b(MON|USDC|WMON|USDT|WETH|WBTC)\b/i);
+    const token = tokenMatch ? tokenMatch[1].toUpperCase() : undefined;
+
     return {
-      message: `📊 **[Mock Mode]** Here's your wallet balance on Monad:\n\n• MON: 100 MON (~$2,500)\n• USDC: 500 USDC\n• WMON: 50 WMON\n\n*Note: This is mock data for testing.*`,
+      message: `📊 I'll check your ${token || "wallet"} balance on Monad.\n\nPlease connect your wallet to see your balances.`,
       intents: [
         {
           id: uuidv4(),
           type: "check_balance",
-          params: {},
+          params: { token },
           status: "ready",
           createdAt: Date.now(),
         },

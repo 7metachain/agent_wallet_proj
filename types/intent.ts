@@ -72,11 +72,22 @@ export interface TransferIntent extends BaseIntent {
   };
 }
 
+// Balance Info 类型
+export interface BalanceInfo {
+  token: string;
+  symbol: string;
+  balance: string; // Human-readable
+  rawBalance: string; // Store as string for JSON serialization
+  decimals: number;
+  usdValue?: string; // Optional for future use
+}
+
 // Check Balance 意图
 export interface CheckBalanceIntent extends BaseIntent {
   type: "check_balance";
   params: {
     token?: string;
+    balances?: BalanceInfo[]; // Actual balance data
   };
 }
 

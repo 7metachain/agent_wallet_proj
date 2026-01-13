@@ -30,7 +30,7 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
       symbol: "USDC",
       name: "USD Coin",
       decimals: 6,
-      address: "0x" as Address, // TODO: Update with actual Monad mainnet USDC address
+      address: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603" as Address, // Circle's official USDC deployment on Monad mainnet
       logoURI: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
     },
     USDT: {
@@ -76,7 +76,7 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
       symbol: "USDC",
       name: "USD Coin (Testnet)",
       decimals: 6,
-      address: "0x" as Address, // Can be minted from Atlantis DEX or Nabla Discord
+      address: "0x534b2f3A21130d7a60830c2Df862319e593943A3" as Address, // Circle's official testnet USDC - can be minted from Atlantis DEX
       logoURI: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
     },
     USDT: {

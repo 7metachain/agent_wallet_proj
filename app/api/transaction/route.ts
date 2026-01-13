@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { encodeFunctionData, parseUnits } from "viem";
+import { encodeFunctionData, parseUnits, isAddress } from "viem";
 import { Intent } from "@/types/intent";
 import { getTokenBySymbol } from "@/lib/web3/tokens";
 import { erc20Abi } from "@/lib/web3/abi/erc20";
@@ -159,6 +159,20 @@ async function buildTransactions(
 
     case "transfer": {
       const { token, amount, to } = intent.params;
+
+      // Server-side validation as safety net
+      if (!to || typeof to !== "string") {
+        throw new Error("Recipient address is required");
+      }
+
+      if (!isAddress(to)) {
+        throw new Error(`Invalid recipient address: ${to}`);
+      }
+
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        throw new Error("Invalid transfer amount");
+      }
+
       const tokenInfo = getTokenBySymbol(chainId, token);
 
       if (!tokenInfo) {
@@ -167,18 +181,23 @@ async function buildTransactions(
 
       const amountToTransfer = parseUnits(amount, tokenInfo.decimals);
 
-      if (token.toUpperCase() === "ETH") {
-        // ETH 转账
+      // Check if token is the native token for the chain
+      const isNativeToken = token.toUpperCase() === "MON" ||
+                            token.toUpperCase() === "ETH" ||
+                            tokenInfo.address === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+      if (isNativeToken) {
+        // Native token transfer (MON/ETH)
         transactions.push({
           id: `${intent.id}-transfer`,
           type: "transfer",
           to: to,
           data: "0x",
           value: amountToTransfer.toString(),
-          description: `Transfer ${amount} ETH to ${to}`,
+          description: `Transfer ${amount} ${token} to ${to}`,
         });
       } else {
-        // ERC20 转账
+        // ERC20 token transfer
         const transferData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "transfer",

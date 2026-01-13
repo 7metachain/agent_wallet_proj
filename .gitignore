@@ -48,3 +48,6 @@ next-env.d.ts
 # Turbo
 .turbo
 
+# ignore all claude files and tempclaude files
+.claude
+tempclaude-*

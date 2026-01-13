@@ -45,10 +45,18 @@ export const monadTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://testnet.monad.xyz"],
+      http: [
+        "https://testnet-rpc.monad.xyz",
+        "https://monad-testnet.drpc.org",
+        "https://rpc.ankr.com/monad_testnet"
+      ],
     },
     public: {
-      http: ["https://testnet.monad.xyz"],
+      http: [
+        "https://testnet-rpc.monad.xyz",
+        "https://monad-testnet.drpc.org",
+        "https://rpc.ankr.com/monad_testnet"
+      ],
     },
   },
   blockExplorers: {
