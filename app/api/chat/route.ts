@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mock 模式：返回模拟响应
-    if (MOCK_MODE || !process.env.OPENAI_API_KEY) {
+    if (MOCK_MODE || !process.env.DEEPSEEK_API_KEY) {
       return NextResponse.json(generateMockResponse(message));
     }
 
@@ -68,16 +68,16 @@ export async function POST(request: NextRequest) {
         const functionName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
 
-        // 根据函数名创建意图
+        // 根据函数名创建意图 (Monad + Curvance)
         let intentType: string;
         switch (functionName) {
           case "swap_tokens":
             intentType = "swap";
             break;
-          case "supply_to_aave":
+          case "supply_to_curvance":
             intentType = "supply";
             break;
-          case "withdraw_from_aave":
+          case "withdraw_from_curvance":
             intentType = "withdraw";
             break;
           case "transfer_token":
@@ -135,9 +135,9 @@ function generateIntentSummary(intents: any[]): string {
       case "swap":
         return `Swap ${intent.params.amount} ${intent.params.fromToken} to ${intent.params.toToken}`;
       case "supply":
-        return `Supply ${intent.params.amount} ${intent.params.token} to Aave`;
+        return `Supply ${intent.params.amount} ${intent.params.token} to Curvance`;
       case "withdraw":
-        return `Withdraw ${intent.params.amount} ${intent.params.token} from Aave`;
+        return `Withdraw ${intent.params.amount} ${intent.params.token} from Curvance`;
       case "transfer":
         return `Transfer ${intent.params.amount} ${intent.params.token} to ${intent.params.to}`;
       case "check_balance":
@@ -170,13 +170,13 @@ function generateMockResponse(message: string): {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
     const amount = amountMatch ? amountMatch[1] : "100";
 
-    // 检测代币对
+    // 检测代币对 (Monad 网络)
     let fromToken = "USDC";
-    let toToken = "ETH";
+    let toToken = "MON";
 
-    if (lowerMessage.includes("eth") && lowerMessage.includes("usdc")) {
-      if (lowerMessage.indexOf("eth") < lowerMessage.indexOf("usdc")) {
-        fromToken = "ETH";
+    if (lowerMessage.includes("mon") && lowerMessage.includes("usdc")) {
+      if (lowerMessage.indexOf("mon") < lowerMessage.indexOf("usdc")) {
+        fromToken = "MON";
         toToken = "USDC";
       }
     } else if (lowerMessage.includes("usdt")) {
@@ -184,7 +184,7 @@ function generateMockResponse(message: string): {
     }
 
     return {
-      message: `🔄 **[Mock Mode]** I'll help you swap ${amount} ${fromToken} to ${toToken}.\n\nClick "Execute" to proceed with the transaction.`,
+      message: `🔄 **[Mock Mode]** I'll help you swap ${amount} ${fromToken} to ${toToken} on Monad.\n\nClick "Execute" to proceed with the transaction.`,
       intents: [
         {
           id: uuidv4(),
@@ -201,19 +201,21 @@ function generateMockResponse(message: string): {
       ],
       needsConfirmation: true,
     };
-  }  // 检测 supply/deposit 意图
+  }
+
+  // 检测 supply/deposit 意图 (Curvance)
   if (
     lowerMessage.includes("supply") ||
     lowerMessage.includes("deposit") ||
     lowerMessage.includes("存") ||
-    lowerMessage.includes("aave")
+    lowerMessage.includes("curvance")
   ) {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
     const amount = amountMatch ? amountMatch[1] : "0.1";
-    const token = lowerMessage.includes("usdc") ? "USDC" : "ETH";
+    const token = lowerMessage.includes("usdc") ? "USDC" : "MON";
 
     return {
-      message: `🏦 **[Mock Mode]** I'll help you supply ${amount} ${token} to Aave to earn yield.\n\nClick "Execute" to proceed.`,
+      message: `🏦 **[Mock Mode]** I'll help you supply ${amount} ${token} to Curvance to earn yield.\n\nClick "Execute" to proceed.`,
       intents: [
         {
           id: uuidv4(),
@@ -230,7 +232,7 @@ function generateMockResponse(message: string): {
     };
   }
 
-  // 检测 withdraw 意图
+  // 检测 withdraw 意图 (Curvance)
   if (
     lowerMessage.includes("withdraw") ||
     lowerMessage.includes("取") ||
@@ -238,10 +240,10 @@ function generateMockResponse(message: string): {
   ) {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
     const amount = amountMatch ? amountMatch[1] : "max";
-    const token = lowerMessage.includes("usdc") ? "USDC" : "ETH";
+    const token = lowerMessage.includes("usdc") ? "USDC" : "MON";
 
     return {
-      message: `📤 **[Mock Mode]** I'll help you withdraw ${amount} ${token} from Aave.\n\nClick "Execute" to proceed.`,
+      message: `📤 **[Mock Mode]** I'll help you withdraw ${amount} ${token} from Curvance.\n\nClick "Execute" to proceed.`,
       intents: [
         {
           id: uuidv4(),
@@ -267,19 +269,14 @@ function generateMockResponse(message: string): {
   ) {
     const amountMatch = message.match(/(\d+(?:\.\d+)?)/);
     const amount = amountMatch ? amountMatch[1] : "50";
-    const token = lowerMessage.includes("eth") ? "ETH" : "USDC";
+    const token = lowerMessage.includes("mon") ? "MON" : "USDC";
 
     // 尝试提取地址
     const addressMatch = message.match(/(0x[a-fA-F0-9]{40})/);
-    const ensMatch = message.match(/([a-zA-Z0-9-]+\.eth)/);
-    const to = addressMatch
-      ? addressMatch[1]
-      : ensMatch
-        ? ensMatch[1]
-        : "0x1234...5678";
+    const to = addressMatch ? addressMatch[1] : "0x1234...5678";
 
     return {
-      message: `💸 **[Mock Mode]** I'll help you transfer ${amount} ${token} to ${to}.\n\nClick "Execute" to proceed.`,
+      message: `💸 **[Mock Mode]** I'll help you transfer ${amount} ${token} to ${to} on Monad.\n\nClick "Execute" to proceed.`,
       intents: [
         {
           id: uuidv4(),
@@ -305,7 +302,7 @@ function generateMockResponse(message: string): {
     lowerMessage.includes("查")
   ) {
     return {
-      message: `📊 **[Mock Mode]** Here's your wallet balance:\n\n• ETH: 0.5 ETH (~$1,250)\n• USDC: 500 USDC\n• DAI: 100 DAI\n\n*Note: This is mock data for testing.*`,
+      message: `📊 **[Mock Mode]** Here's your wallet balance on Monad:\n\n• MON: 10.5 MON\n• USDC: 500 USDC\n• DAI: 100 DAI\n\n*Note: This is mock data for testing.*`,
       intents: [
         {
           id: uuidv4(),
@@ -321,7 +318,7 @@ function generateMockResponse(message: string): {
 
   // 默认响应
   return {
-    message: `👋 **[Mock Mode]** I'm Intent Bot! I can help you with:\n\n• **Swap** - "Swap 100 USDC to ETH"\n• **Supply** - "Deposit 0.1 ETH to Aave"\n• **Withdraw** - "Withdraw my USDC from Aave"\n• **Transfer** - "Send 50 USDC to vitalik.eth"\n• **Balance** - "Check my balance"\n\nTry one of these commands!`,
+    message: `👋 **[Mock Mode]** I'm Intent Bot on Monad! I can help you with:\n\n• **Swap** - "Swap 100 USDC to MON"\n• **Supply** - "Deposit 0.1 MON to Curvance"\n• **Withdraw** - "Withdraw my USDC from Curvance"\n• **Transfer** - "Send 50 USDC to 0x..."\n• **Balance** - "Check my balance"\n\nTry one of these commands!`,
     intents: [],
     needsConfirmation: false,
   };

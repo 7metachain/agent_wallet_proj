@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { encodeFunctionData, parseUnits } from "viem";
+import { encodeFunctionData, parseUnits, Address } from "viem";
 import { Intent } from "@/types/intent";
-import { getTokenBySymbol } from "@/lib/web3/tokens";
+import { getTokenBySymbol, MONAD_TESTNET_CHAIN_ID } from "@/lib/web3/tokens";
 import { erc20Abi } from "@/lib/web3/abi/erc20";
+import { buildSupplyTx, buildWithdrawTx } from "@/lib/web3/curvance";
 
-// Uniswap V3 Router 地址 (示例)
-const SWAP_ROUTER_ADDRESS = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"; // Sepolia UniswapV3 Router
-
-// Aave V3 Pool 地址 (示例)
-const AAVE_POOL_ADDRESS = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951"; // Sepolia Aave V3 Pool
+// Monad DEX Router 地址 (占位符，待实际部署后更新)
+const SWAP_ROUTER_ADDRESS = "0x0000000000000000000000000000000000000200"; // Monad DEX Router
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { intent, walletAddress, chainId = 11155111 } = body;
+    const { intent, walletAddress, chainId = MONAD_TESTNET_CHAIN_ID } = body;
 
     if (!intent) {
       return NextResponse.json(
@@ -28,7 +26,7 @@ export async function POST(request: NextRequest) {
       transactions,
       summary: {
         totalSteps: transactions.length,
-        estimatedGas: "0.001 ETH",
+        estimatedGas: "0.001 MON",
         warnings: transactions.length > 1 ? ["Multiple transactions required"] : [],
       },
     });
@@ -60,12 +58,12 @@ async function buildTransactions(
 
       const amountIn = parseUnits(amount, fromTokenInfo.decimals);
 
-      // 如果不是 ETH，需要先 approve
-      if (fromToken.toUpperCase() !== "ETH") {
+      // 如果不是 MON (原生代币)，需要先 approve
+      if (fromToken.toUpperCase() !== "MON") {
         const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [SWAP_ROUTER_ADDRESS, amountIn],
+          args: [SWAP_ROUTER_ADDRESS as Address, amountIn],
         });
 
         transactions.push({
@@ -78,14 +76,13 @@ async function buildTransactions(
         });
       }
 
-      // Swap 交易 (简化版本，实际需要调用 Uniswap SDK 或 0x API)
-      // 这里只是示例，实际实现需要集成真实的 DEX API
+      // Swap 交易 (Monad DEX - 待集成实际 DEX 协议)
       transactions.push({
         id: `${intent.id}-swap`,
         type: "swap",
-        to: SWAP_ROUTER_ADDRESS,
+        to: SWAP_ROUTER_ADDRESS as Address,
         data: "0x", // 需要实际的 swap calldata
-        value: fromToken.toUpperCase() === "ETH" ? amountIn.toString() : "0",
+        value: fromToken.toUpperCase() === "MON" ? amountIn.toString() : "0",
         description: `Swap ${amount} ${fromToken} to ${toToken}`,
       });
       break;
@@ -93,56 +90,29 @@ async function buildTransactions(
 
     case "supply": {
       const { token, amount } = intent.params;
-      const tokenInfo = getTokenBySymbol(chainId, token);
-
-      if (!tokenInfo) {
-        throw new Error(`Token not found: ${token}`);
-      }
-
-      const amountToSupply = parseUnits(amount, tokenInfo.decimals);
-
-      // 如果不是 ETH，需要先 approve
-      if (token.toUpperCase() !== "ETH") {
-        const approveData = encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [AAVE_POOL_ADDRESS, amountToSupply],
-        });
-
-        transactions.push({
-          id: `${intent.id}-approve`,
-          type: "approve",
-          to: tokenInfo.address,
-          data: approveData,
-          value: "0",
-          description: `Approve ${amount} ${token} for Aave`,
-        });
-      }
-
-      // Supply 到 Aave (简化版本)
-      // 实际需要调用 Aave Pool 的 supply 方法
-      transactions.push({
-        id: `${intent.id}-supply`,
-        type: "supply",
-        to: AAVE_POOL_ADDRESS,
-        data: "0x", // 需要实际的 supply calldata
-        value: token.toUpperCase() === "ETH" ? amountToSupply.toString() : "0",
-        description: `Supply ${amount} ${token} to Aave`,
+      
+      // 使用 Curvance 协议构建 supply 交易
+      const supplyTxs = await buildSupplyTx({
+        token,
+        amount,
+        userAddress: walletAddress as Address,
       });
+
+      transactions.push(...supplyTxs);
       break;
     }
 
     case "withdraw": {
       const { token, amount } = intent.params;
-      // Withdraw 从 Aave
-      transactions.push({
-        id: `${intent.id}-withdraw`,
-        type: "withdraw",
-        to: AAVE_POOL_ADDRESS,
-        data: "0x", // 需要实际的 withdraw calldata
-        value: "0",
-        description: `Withdraw ${amount} ${token} from Aave`,
+      
+      // 使用 Curvance 协议构建 withdraw 交易
+      const withdrawTxs = await buildWithdrawTx({
+        token,
+        amount,
+        userAddress: walletAddress as Address,
       });
+
+      transactions.push(...withdrawTxs);
       break;
     }
 
@@ -156,15 +126,15 @@ async function buildTransactions(
 
       const amountToTransfer = parseUnits(amount, tokenInfo.decimals);
 
-      if (token.toUpperCase() === "ETH") {
-        // ETH 转账
+      if (token.toUpperCase() === "MON") {
+        // MON (原生代币) 转账
         transactions.push({
           id: `${intent.id}-transfer`,
           type: "transfer",
           to: to,
           data: "0x",
           value: amountToTransfer.toString(),
-          description: `Transfer ${amount} ETH to ${to}`,
+          description: `Transfer ${amount} MON to ${to}`,
         });
       } else {
         // ERC20 转账

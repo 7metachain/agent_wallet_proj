@@ -4,10 +4,10 @@ import { z } from "zod";
 export const swapTokensSchema = z.object({
   fromToken: z
     .string()
-    .describe("The token symbol to swap from (e.g., 'USDC', 'ETH')"),
+    .describe("The token symbol to swap from (e.g., 'USDC', 'MON')"),
   toToken: z
     .string()
-    .describe("The token symbol to swap to (e.g., 'ETH', 'USDC')"),
+    .describe("The token symbol to swap to (e.g., 'MON', 'USDC')"),
   amount: z.string().describe("The amount to swap in human readable format"),
   slippage: z
     .number()
@@ -15,18 +15,18 @@ export const swapTokensSchema = z.object({
     .describe("Slippage tolerance in percentage, default 0.5"),
 });
 
-// Supply to Aave 参数 Schema
-export const supplyToAaveSchema = z.object({
+// Supply to Curvance 参数 Schema (Monad 原生借贷协议)
+export const supplyToCurvanceSchema = z.object({
   token: z
     .string()
-    .describe("The token symbol to supply (e.g., 'ETH', 'USDC')"),
+    .describe("The token symbol to supply (e.g., 'MON', 'USDC')"),
   amount: z
     .string()
     .describe("The amount to supply, can be a number or 'half', 'all'"),
 });
 
-// Withdraw from Aave 参数 Schema
-export const withdrawFromAaveSchema = z.object({
+// Withdraw from Curvance 参数 Schema
+export const withdrawFromCurvanceSchema = z.object({
   token: z.string().describe("The token symbol to withdraw"),
   amount: z
     .string()
@@ -49,23 +49,24 @@ export const checkBalanceSchema = z.object({
 });
 
 // 工具定义（用于 OpenAI Function Calling）
+// 适配 Monad 网络和 Curvance 协议
 export const intentTools = [
   {
     type: "function" as const,
     function: {
       name: "swap_tokens",
       description:
-        "Swap/exchange one token for another token. Use this when user wants to convert, swap, exchange, or trade tokens.",
+        "Swap/exchange one token for another token on Monad. Use this when user wants to convert, swap, exchange, or trade tokens.",
       parameters: {
         type: "object",
         properties: {
           fromToken: {
             type: "string",
-            description: "The token symbol to swap from (e.g., 'USDC', 'ETH')",
+            description: "The token symbol to swap from (e.g., 'USDC', 'MON')",
           },
           toToken: {
             type: "string",
-            description: "The token symbol to swap to (e.g., 'ETH', 'USDC')",
+            description: "The token symbol to swap to (e.g., 'MON', 'USDC')",
           },
           amount: {
             type: "string",
@@ -83,15 +84,15 @@ export const intentTools = [
   {
     type: "function" as const,
     function: {
-      name: "supply_to_aave",
+      name: "supply_to_curvance",
       description:
-        "Supply/deposit tokens to Aave lending protocol to earn interest. Use when user wants to deposit, supply, lend, or earn yield.",
+        "Supply/deposit tokens to Curvance lending protocol on Monad to earn interest. Use when user wants to deposit, supply, lend, or earn yield.",
       parameters: {
         type: "object",
         properties: {
           token: {
             type: "string",
-            description: "The token symbol to supply (e.g., 'ETH', 'USDC')",
+            description: "The token symbol to supply (e.g., 'MON', 'USDC')",
           },
           amount: {
             type: "string",
@@ -106,9 +107,9 @@ export const intentTools = [
   {
     type: "function" as const,
     function: {
-      name: "withdraw_from_aave",
+      name: "withdraw_from_curvance",
       description:
-        "Withdraw tokens from Aave lending protocol. Use when user wants to withdraw or retrieve their deposited assets.",
+        "Withdraw tokens from Curvance lending protocol on Monad. Use when user wants to withdraw or retrieve their deposited assets.",
       parameters: {
         type: "object",
         properties: {
@@ -130,7 +131,7 @@ export const intentTools = [
     function: {
       name: "transfer_token",
       description:
-        "Transfer/send tokens to another address. Use when user wants to send, transfer tokens to someone.",
+        "Transfer/send tokens to another address on Monad. Use when user wants to send, transfer tokens to someone.",
       parameters: {
         type: "object",
         properties: {
@@ -144,7 +145,7 @@ export const intentTools = [
           },
           to: {
             type: "string",
-            description: "The recipient address or ENS name",
+            description: "The recipient address",
           },
         },
         required: ["token", "amount", "to"],
@@ -156,7 +157,7 @@ export const intentTools = [
     function: {
       name: "check_balance",
       description:
-        "Check token balance in wallet. Use when user asks about their balance, holdings, or how much they have.",
+        "Check token balance in wallet on Monad. Use when user asks about their balance, holdings, or how much they have.",
       parameters: {
         type: "object",
         properties: {

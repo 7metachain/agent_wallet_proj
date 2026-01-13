@@ -9,43 +9,48 @@ const MODEL = "deepseek-v3-2-251201";
 const API_URL = "https://maas-openapi.wanjiedata.com/api/v1/chat/completions";
 
 // ============================================
-// 系统提示词
+// 系统提示词 - Monad + Curvance
 // ============================================
-const SYSTEM_PROMPT = `You are an AI assistant for a Web3 trading bot called "Intent Bot". Your job is to understand user's intent and help them execute blockchain transactions.
+const SYSTEM_PROMPT = `You are an AI assistant for a Web3 trading bot called "Intent Bot" on the Monad blockchain. Your job is to understand user's intent and help them execute blockchain transactions.
+
+## Network: Monad Testnet
+Monad is a high-performance EVM-compatible L1 blockchain with parallel execution.
 
 ## Your Capabilities:
-1. **swap_tokens**: Exchange one token for another (e.g., USDC to ETH)
-2. **supply_to_aave**: Deposit tokens into Aave to earn interest
-3. **withdraw_from_aave**: Withdraw tokens from Aave
+1. **swap_tokens**: Exchange one token for another (e.g., USDC to MON)
+2. **supply_to_curvance**: Deposit tokens into Curvance lending protocol to earn interest
+3. **withdraw_from_curvance**: Withdraw tokens from Curvance
 4. **transfer_token**: Send tokens to another address
 5. **check_balance**: Check wallet token balances
 
 ## Guidelines:
 - Parse user's natural language and call the appropriate function(s)
+- Use Monad token symbols: MON (native), WMON, USDC, USDT, DAI
 - Support both English and Chinese inputs
 - Always respond in the same language the user used
 
 ## 处理非交易请求：
 - 如果用户打招呼或闲聊，友好回复并简要介绍你的功能，不要调用工具
-- 如果用户询问 DeFi/区块链知识，简洁解答并引导到具体操作
+- 如果用户询问 DeFi/区块链/Monad/Curvance 知识，简洁解答并引导到具体操作
 - 如果意图不明确，友好地询问用户想要完成什么操作
 - 只有当用户明确表达交易意图时，才调用相应工具函数
-- 不要对模糊请求强行调用工具`;
+- 不要对模糊请求强行调用工具
+- Curvance 是 Monad 原生借贷协议（类似于 Aave）`;
 
 // ============================================
-// 意图工具定义
+// 意图工具定义 - Monad + Curvance
 // ============================================
 const intentTools = [
   {
     type: "function",
     function: {
       name: "swap_tokens",
-      description: "Swap/exchange one token for another token.",
+      description: "Swap/exchange one token for another token on Monad.",
       parameters: {
         type: "object",
         properties: {
-          fromToken: { type: "string", description: "The token to swap from" },
-          toToken: { type: "string", description: "The token to swap to" },
+          fromToken: { type: "string", description: "The token to swap from (e.g., USDC, MON)" },
+          toToken: { type: "string", description: "The token to swap to (e.g., MON, USDC)" },
           amount: { type: "string", description: "The amount to swap" },
         },
         required: ["fromToken", "toToken", "amount"],
@@ -55,12 +60,12 @@ const intentTools = [
   {
     type: "function",
     function: {
-      name: "supply_to_aave",
-      description: "Supply/deposit tokens to Aave lending protocol.",
+      name: "supply_to_curvance",
+      description: "Supply/deposit tokens to Curvance lending protocol on Monad to earn interest.",
       parameters: {
         type: "object",
         properties: {
-          token: { type: "string", description: "The token to supply" },
+          token: { type: "string", description: "The token to supply (e.g., MON, USDC)" },
           amount: { type: "string", description: "The amount to supply" },
         },
         required: ["token", "amount"],
@@ -70,8 +75,8 @@ const intentTools = [
   {
     type: "function",
     function: {
-      name: "withdraw_from_aave",
-      description: "Withdraw tokens from Aave lending protocol.",
+      name: "withdraw_from_curvance",
+      description: "Withdraw tokens from Curvance lending protocol on Monad.",
       parameters: {
         type: "object",
         properties: {
@@ -86,7 +91,7 @@ const intentTools = [
     type: "function",
     function: {
       name: "transfer_token",
-      description: "Transfer/send tokens to another address.",
+      description: "Transfer/send tokens to another address on Monad.",
       parameters: {
         type: "object",
         properties: {
@@ -102,7 +107,7 @@ const intentTools = [
     type: "function",
     function: {
       name: "check_balance",
-      description: "Check token balance in wallet.",
+      description: "Check token balance in wallet on Monad.",
       parameters: {
         type: "object",
         properties: {
