@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useChainId } from "wagmi";
 import { Intent } from "@/types/intent";
+import { saveTransactionHistory, updateTransactionStatus, TransactionHistory } from "@/types/history";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,9 +47,10 @@ export function TransactionCard({ intent }: TransactionCardProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
 
   const { sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
     hash: txHash,
   });
 
@@ -80,12 +82,25 @@ export function TransactionCard({ intent }: TransactionCardProps) {
 
   // 执行交易
   const handleExecute = async () => {
-    if (!isConnected) return;
+    if (!isConnected || !address) return;
 
     setIsExecuting(true);
     setError(null);
 
     try {
+      // 创建历史记录（pending 状态）
+      const history: TransactionHistory = {
+        id: intent.id,
+        intent,
+        status: "pending",
+        timestamp: Date.now(),
+        chainId,
+        walletAddress: address,
+      };
+      
+      saveTransactionHistory(history);
+      setHistoryId(intent.id);
+
       // 调用后端 API 获取交易数据
       const response = await fetch("/api/transaction", {
         method: "POST",
@@ -115,10 +130,20 @@ export function TransactionCard({ intent }: TransactionCardProps) {
           {
             onSuccess: (hash) => {
               setTxHash(hash);
+              // 更新历史记录：添加 txHash
+              updateTransactionStatus(intent.id, {
+                status: "pending",
+                txHash: hash,
+              });
             },
             onError: (err) => {
               setError(err.message);
               setIsExecuting(false);
+              // 更新历史记录：标记为失败
+              updateTransactionStatus(intent.id, {
+                status: "failed",
+                error: err.message,
+              });
             },
           }
         );
@@ -126,8 +151,27 @@ export function TransactionCard({ intent }: TransactionCardProps) {
     } catch (err: any) {
       setError(err.message || "Transaction failed");
       setIsExecuting(false);
+      // 更新历史记录：标记为失败
+      if (historyId) {
+        updateTransactionStatus(historyId, {
+          status: "failed",
+          error: err.message || "Transaction failed",
+        });
+      }
     }
   };
+
+  // 监听交易确认状态，更新历史记录
+  useEffect(() => {
+    if (isSuccess && txHash && receipt && historyId) {
+      updateTransactionStatus(historyId, {
+        status: "success",
+        txHash,
+        gasUsed: receipt.gasUsed?.toString(),
+        blockNumber: Number(receipt.blockNumber),
+      });
+    }
+  }, [isSuccess, txHash, receipt, historyId]);
 
   // 状态徽章
   const getStatusBadge = () => {
