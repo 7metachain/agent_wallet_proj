@@ -19,6 +19,33 @@ export interface TokenInfo {
 // - 为交易构建、余额查询、UI 下拉选择等场景提供可靠的代币元数据来源
 // - 将链相关的代币隔离，便于多链支持
 export const TOKENS: Record<number, Record<string, TokenInfo>> = {
+  // Monad Testnet (10143)
+  10143: {
+    MON: {
+      symbol: "MON",
+      name: "Monad",
+      decimals: 18,
+      address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address,
+      logoURI: "https://via.placeholder.com/150/8B5CF6/FFFFFF?text=MON",
+    },
+    // Mock MONAD Token (ERC20)
+    MONAD: {
+      symbol: "MONAD",
+      name: "Mock Monad Token",
+      decimals: 18,
+      address: (process.env.NEXT_PUBLIC_MONAD_TOKEN || "0x0000000000000000000000000000000000000000") as Address,
+      logoURI: "https://via.placeholder.com/150/8B5CF6/FFFFFF?text=MONAD",
+    },
+    // Mock USDC (for testing purposes)
+    USDC: {
+      symbol: "USDC",
+      name: "Mock USD Coin",
+      decimals: 6,
+      address: (process.env.NEXT_PUBLIC_MOCK_USDC || "0x0000000000000000000000000000000000000000") as Address,
+      logoURI: "https://via.placeholder.com/150/2775CA/FFFFFF?text=USDC",
+    },
+  },
+
   // Base Sepolia (84532)
   84532: {
     ETH: {
@@ -41,6 +68,14 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
       decimals: 6,
       address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Address,
       logoURI: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
+    },
+    // Mock MONAD Token (部署后从 .env 读取地址)
+    MONAD: {
+      symbol: "MONAD",
+      name: "Mock Monad",
+      decimals: 18,
+      address: (process.env.NEXT_PUBLIC_MONAD_TOKEN || "0x0000000000000000000000000000000000000000") as Address,
+      logoURI: "https://via.placeholder.com/150/8B5CF6/FFFFFF?text=MONAD",
     },
   },
 
@@ -104,13 +139,23 @@ export const TOKENS: Record<number, Record<string, TokenInfo>> = {
 
 // 根据符号（symbol）获取 Token 信息
 // - 返回值可能为 undefined（符号未收录或链未支持）
+// - 自动处理代币符号别名（例如在 Monad Testnet 上将 ETH 映射为 MON）
 export function getTokenBySymbol(
   chainId: number,
   symbol: string
 ): TokenInfo | undefined {
   const chainTokens = TOKENS[chainId];
   if (!chainTokens) return undefined;
-  return chainTokens[symbol.toUpperCase()];
+
+  const normalizedSymbol = symbol.toUpperCase();
+
+  // 在 Monad Testnet 上，将 ETH 自动映射为 MON（原生代币）
+  if (chainId === 10143 && normalizedSymbol === "ETH") {
+    console.log(`[tokens] Auto-mapping ETH to MON for Monad Testnet`);
+    return chainTokens["MON"];
+  }
+
+  return chainTokens[normalizedSymbol];
 }
 
 // 根据地址获取 Token 信息（地址优先匹配，区分大小写规范化）

@@ -7,12 +7,29 @@ import { v4 as uuidv4 } from "uuid";
 // Mock 模式标识
 const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
-// 初始化 OpenAI 客户端（仅在非 Mock 模式下）
-const openai = !MOCK_MODE
-  ? new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
-  : null;
+// AI Provider 配置
+const AI_PROVIDER = process.env.AI_PROVIDER || "deepseek";
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// 初始化 AI 客户端
+let aiClient: OpenAI | null = null;
+let aiModel = "";
+
+if (!MOCK_MODE) {
+  if (AI_PROVIDER === "deepseek" && DEEPSEEK_API_KEY) {
+    aiClient = new OpenAI({
+      apiKey: DEEPSEEK_API_KEY,
+      baseURL: "https://api.deepseek.com",
+    });
+    aiModel = "deepseek-chat";
+  } else if (AI_PROVIDER === "openai" && OPENAI_API_KEY) {
+    aiClient = new OpenAI({
+      apiKey: OPENAI_API_KEY,
+    });
+    aiModel = "gpt-4o";
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,14 +43,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mock 模式：返回模拟响应
-    if (MOCK_MODE || !process.env.OPENAI_API_KEY) {
+    // Mock 模式：仍然调用 AI，但标记为 mock 模式
+    // 如果没有 AI 客户端，才使用模拟响应
+    if (!aiClient) {
+      console.warn('⚠️ [AI Call] Skipped - No API client configured');
+      console.log(`🔶 [Mock Mode] Using mock response (Provider: ${AI_PROVIDER})`);
+      console.log('  Message:', message);
       return NextResponse.json(generateMockResponse(message));
     }
 
+    // Mock 模式下在系统提示中告知 AI 这是 mock 环境
+    const mockModeNotice = MOCK_MODE
+      ? "\n\nIMPORTANT: The app is in MOCK MODE. All transactions will be simulated without actual blockchain execution. Inform users that this is a demo/test environment."
+      : "";
+
     // 构建消息历史
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "system",
+        content: SYSTEM_PROMPT + mockModeNotice,
+      },
       // 添加上下文信息
       {
         role: "system",
@@ -48,9 +77,17 @@ export async function POST(request: NextRequest) {
       { role: "user", content: message },
     ];
 
-    // 调用 OpenAI API
-    const response = await openai!.chat.completions.create({
-      model: "gpt-4o",
+    // 调用 AI API
+    console.log(`🤖 [AI Call] Calling ${AI_PROVIDER} API...`);
+    console.log('  Provider:', AI_PROVIDER);
+    console.log('  Model:', aiModel);
+    console.log('  Temperature:', 0.7);
+    console.log('  Message:', message);
+    console.log('  History length:', history.length);
+    console.log('  Tools available:', intentTools.length);
+
+    const response = await aiClient!.chat.completions.create({
+      model: aiModel,
       messages,
       tools: intentTools,
       tool_choice: "auto",
@@ -59,6 +96,16 @@ export async function POST(request: NextRequest) {
     });
 
     const assistantMessage = response.choices[0].message;
+
+    console.log(`✅ [AI Response] Received response from ${AI_PROVIDER}`);
+    console.log('  Response content:', assistantMessage.content);
+    console.log('  Tool calls count:', assistantMessage.tool_calls?.length || 0);
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      assistantMessage.tool_calls.forEach((call: any, index: number) => {
+        console.log(`  Tool call ${index + 1}:`, call.function.name, JSON.parse(call.function.arguments));
+      });
+    }
+
     const intents: any[] = [];
 
     // 解析工具调用
@@ -85,6 +132,9 @@ export async function POST(request: NextRequest) {
           case "check_balance":
             intentType = "check_balance";
             break;
+          case "stake_with_yield_recipient":
+            intentType = "stake_with_yield";
+            break;
           default:
             continue;
         }
@@ -99,6 +149,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('📋 [Intents] Parsed', intents.length, 'intent(s):');
+    intents.forEach((intent, index) => {
+      console.log(`  Intent ${index + 1}:`, intent.type, intent.params);
+    });
+
     // 返回响应
     return NextResponse.json({
       message: assistantMessage.content || generateIntentSummary(intents),
@@ -106,7 +161,7 @@ export async function POST(request: NextRequest) {
       needsConfirmation: intents.length > 0,
     });
   } catch (error: any) {
-    console.error("Chat API error:", error);
+    console.error(`Chat API error (${AI_PROVIDER}):`, error);
 
     // 检查是否是 API Key 错误
     if (error?.status === 401) {
@@ -141,6 +196,8 @@ function generateIntentSummary(intents: any[]): string {
         return `Transfer ${intent.params.amount} ${intent.params.token} to ${intent.params.to}`;
       case "check_balance":
         return `Check balance${intent.params.token ? ` for ${intent.params.token}` : ""}`;
+      case "call_faucet":
+        return `Call faucet to get ${intent.params.token || "MONAD"} tokens`;
       default:
         return "";
     }

@@ -3,7 +3,7 @@ export const aavePoolAbi = [
   {
     type: "function",
     name: "supply",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "asset", type: "address" },
       { name: "amount", type: "uint256" },

@@ -66,8 +66,13 @@ export async function getTokenBalance(
     return null;
   }
 
-  // 如果是原生代币
-  if (symbol.toUpperCase() === "ETH") {
+  // 如果是原生代币（ETH 或 MON，或��他使用特殊地址的代币）
+  const isNativeToken =
+    symbol.toUpperCase() === "ETH" ||
+    symbol.toUpperCase() === "MON" ||
+    tokenInfo.address === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+  if (isNativeToken) {
     const balance = await getNativeBalance(publicClient, ownerAddress);
     return {
       token: tokenInfo,
@@ -102,7 +107,13 @@ export async function getAllTokenBalances(
     try {
       let balance: bigint;
 
-      if (token.symbol.toUpperCase() === "ETH") {
+      // 检查是否为原生代币（ETH、MON 或使用特殊地址的代币）
+      const isNativeToken =
+        token.symbol.toUpperCase() === "ETH" ||
+        token.symbol.toUpperCase() === "MON" ||
+        token.address === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+      if (isNativeToken) {
         balance = await getNativeBalance(publicClient, ownerAddress);
       } else {
         balance = await getERC20Balance(publicClient, token.address, ownerAddress);
@@ -184,11 +195,14 @@ export async function getWalletSummary(
   chainId: number,
   ownerAddress: Address
 ): Promise<WalletSummary> {
+  // 根据链 ID 确定原生代币符号
+  const nativeSymbol = chainId === 10143 ? "MON" : "ETH";
+
   // 查询原生代币余额
   const nativeBalanceInfo = await getTokenBalance(
     publicClient,
     chainId,
-    "ETH",
+    nativeSymbol,
     ownerAddress
   );
 
@@ -205,7 +219,7 @@ export async function getWalletSummary(
 
   // 分离原生代币和其他代币
   const tokenBalances = allBalances.filter(
-    (b) => b.token.symbol.toUpperCase() !== "ETH"
+    (b) => b.token.symbol.toUpperCase() !== nativeSymbol
   );
 
   return {

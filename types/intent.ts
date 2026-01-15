@@ -6,7 +6,9 @@ export type IntentType =
   | "supply"
   | "withdraw"
   | "transfer"
-  | "check_balance";
+  | "check_balance"
+  | "stake_with_yield"
+  | "call_faucet";
 
 // 意图状态
 export type IntentStatus =
@@ -73,13 +75,33 @@ export interface CheckBalanceIntent extends BaseIntent {
   };
 }
 
+// Stake with Yield 意图
+export interface StakeWithYieldIntent extends BaseIntent {
+  type: "stake_with_yield";
+  params: {
+    token: string;
+    amount: string;
+    yieldRecipient: string;
+  };
+}
+
+// Call Faucet 意图
+export interface CallFaucetIntent extends BaseIntent {
+  type: "call_faucet";
+  params: {
+    token?: string; // 可选，默认调用 MONAD faucet
+  };
+}
+
 // 意图联合类型
 export type Intent =
   | SwapIntent
   | SupplyIntent
   | WithdrawIntent
   | TransferIntent
-  | CheckBalanceIntent;
+  | CheckBalanceIntent
+  | StakeWithYieldIntent
+  | CallFaucetIntent;
 
 // 交易类型
 export type TransactionType =
@@ -97,6 +119,9 @@ export interface PreparedTransaction {
   data: `0x${string}`;
   value: bigint;
   gasLimit?: bigint;
+  gasPrice?: bigint; // Gas price (for EIP-1559 transactions, use maxFeePerGas and maxPriorityFeePerGas instead)
+  maxFeePerGas?: bigint; // EIP-1559: maximum total fee per gas
+  maxPriorityFeePerGas?: bigint; // EIP-1559: maximum priority fee per gas
   description: string;
 }
 

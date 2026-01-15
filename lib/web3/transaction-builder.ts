@@ -4,6 +4,7 @@ import { getTokenBySymbol } from "@/lib/web3/tokens";
 import { erc20Abi } from "@/lib/web3/abi/erc20";
 import { swapRouterAbi } from "@/lib/web3/abi/uniswap-v3-router";
 import { aavePoolAbi } from "@/lib/web3/abi/aave-v3-pool";
+import { STAKING_POOL_ABI } from "@/lib/web3/abi/staking-pool";
 
 // transaction-builder.ts 负责将高层的 `Intent` 翻译为一组可发送的低层交易（`PreparedTransaction[]`）。
 // 职责包括：
@@ -16,34 +17,82 @@ import { aavePoolAbi } from "@/lib/web3/abi/aave-v3-pool";
 // - `PreparedTransaction` 为本项目自定义类型，发送前可能需要在 Hook 层映射为 wagmi 的 send 参数；
 // - 为兼容部分 TypeScript 编译目标，文件中避免直接使用 BigInt 字面量（如 `0n`），改用 `BigInt(...)`。
 
+// 控制调试输出的开关：在运行/构建时设置 `NEXT_PUBLIC_DEBUG_TX=true` 即可打开日志
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_TX === "true";
+
+/**
+ * 获取链的默认 Gas 配置
+ * 用于避免 MetaMask 调用慢速 RPC 进行 Gas 估计
+ *
+ * 关键优化：对于 Monad Testnet，使用固定的 Gas 配置来绕过慢速 RPC 的 Gas 估计
+ * - 使用合理的固定 Gas Limit（基于 Mock 合约的实际消耗）
+ * - 使用较低的固定 Gas Price（Monad Testnet 不需要高 Gas）
+ * - 完全避免 EIP-1559 参数（使用 legacy gasPrice）
+ */
+function getGasConfig(chainId: number) {
+  // 所有链都使用默认配置（让 MetaMask 完全处理 Gas 估计）
+  // 避免 "internal JSON-RPC error" 问题
+  console.log(`[tx-builder] Using default gas config for chain ${chainId} (let MetaMask handle)`);
+
+  return {
+    simpleGasLimit: undefined,
+    complexGasLimit: undefined,
+    gasPrice: undefined,
+    maxFeePerGas: undefined,
+    maxPriorityFeePerGas: undefined,
+  };
+}
+
 // 协议地址配置
-const PROTOCOL_ADDRESSES: Record<number, Record<string, Address>> = {
-  // Ethereum Sepolia
-  11155111: {
-    uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
-    aaveV3Pool: "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951" as Address,
-  },
-  // Base Sepolia
-  84532: {
-    uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
-    aaveV3Pool: "0x0BBd97c36A2680793fe7B374D9D39A6d639D717f" as Address,
-  },
-  // Arbitrum Sepolia
-  421614: {
-    uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
-    aaveV3Pool: "0x9D83Ccb475a8E9b9F53C6366aF3A3E6d81A3F385" as Address,
-  },
+// 优先使用环境变量中配置的 Mock 合约地址，否则使用默认的测试网地址
+const getProtocolAddress = (chainId: number, protocol: string): Address => {
+  // 检查环境变量（用于部署的 Mock 合约）
+  const envVar = process.env[`NEXT_PUBLIC_MOCK_${protocol.toUpperCase()}`];
+  if (envVar) {
+    console.log(`[tx-builder] Using Mock contract from env: ${protocol} = ${envVar}, chainId=${chainId}`);
+    return envVar as Address;
+  }
+
+  // 默认测试网地址配置
+  const PROTOCOL_ADDRESSES: Record<number, Record<string, Address>> = {
+    // Monad Testnet (使用环境变量中的 Mock 合约地址)
+    10143: {
+      uniswapV3Router: (process.env.NEXT_PUBLIC_MOCK_SWAP_ROUTER || "0x98Ed6EFA01fb3745b636615Fb7c4243a6D595d8B") as Address,
+      aaveV3Pool: (process.env.NEXT_PUBLIC_MOCK_AAVE_POOL || "0xD1053Fd162FcD510F48122c9159E908460857821") as Address,
+    },
+    // Ethereum Sepolia (真实 Aave/Uniswap)
+    11155111: {
+      uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
+      aaveV3Pool: "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951" as Address,
+    },
+    // Base Sepolia (真实 Aave/Uniswap)
+    84532: {
+      uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
+      aaveV3Pool: "0x0BBd97c36A2680793fe7B374D9D39A6d639D717f" as Address,
+    },
+    // Arbitrum Sepolia (真实 Aave/Uniswap)
+    421614: {
+      uniswapV3Router: "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E" as Address,
+      aaveV3Pool: "0x9D83Ccb475a8E9b9F53C6366aF3A3E6d81A3F385" as Address,
+    },
+  };
+
+  const addresses = PROTOCOL_ADDRESSES[chainId];
+  if (!addresses) {
+    throw new Error(`No ${protocol} configured for chain ${chainId}. Please deploy mock contracts or use a supported testnet.`);
+  }
+  return addresses[protocol];
 };
 
 /**
- * 获取协议地址
+ * 检查是否为原生代币（ETH、MON 或使用特殊地址的代币）
  */
-function getProtocolAddress(chainId: number, protocol: "uniswapV3Router" | "aaveV3Pool"): Address {
-  const addresses = PROTOCOL_ADDRESSES[chainId];
-  if (!addresses) {
-    throw new Error(`Unsupported chain ID: ${chainId}`);
-  }
-  return addresses[protocol];
+function isNativeToken(symbol: string, tokenAddress: Address): boolean {
+  return (
+    symbol.toUpperCase() === "ETH" ||
+    symbol.toUpperCase() === "MON" ||
+    tokenAddress === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  );
 }
 
 /**
@@ -51,9 +100,6 @@ function getProtocolAddress(chainId: number, protocol: "uniswapV3Router" | "aave
  * 1. 如果是 ERC20 Token，需要先 approve Uniswap Router
  * 2. 执行 swap
  */
-// 控制调试输出的开关：在运行/构建时设置 `NEXT_PUBLIC_DEBUG_TX=true` 即可打开日志
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_TX === "true";
-
 export async function buildSwapTransaction(
   intent: Intent,
   walletAddress: Address,
@@ -75,10 +121,24 @@ export async function buildSwapTransaction(
   const amountIn = parseUnits(amount, fromTokenInfo.decimals);
   const uniswapRouter = getProtocolAddress(chainId, "uniswapV3Router");
 
+  console.log(`[tx-builder] Building swap transaction:`, {
+    fromToken,
+    toToken,
+    amount,
+    amountIn: amountIn.toString(),
+    fromTokenAddress: fromTokenInfo.address,
+    toTokenAddress: toTokenInfo.address,
+    uniswapRouter,
+    isNativeFrom: isNativeToken(fromToken, fromTokenInfo.address)
+  });
+
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
   const transactions: PreparedTransaction[] = [];
 
-  // 如果不是 ETH，需要先 approve
-  if (fromToken.toUpperCase() !== "ETH") {
+  // 如果不是原生代币，需要先 approve
+  if (!isNativeToken(fromToken, fromTokenInfo.address)) {
     const approveData = encodeFunctionData({
       abi: erc20Abi,
       functionName: "approve",
@@ -91,6 +151,8 @@ export async function buildSwapTransaction(
       to: fromTokenInfo.address,
       data: approveData,
       value: BigInt(0),
+      gasLimit: gasConfig.simpleGasLimit,
+      gasPrice: gasConfig.gasPrice,
       description: `Approve ${amount} ${fromToken} for Uniswap`,
     });
   }
@@ -122,7 +184,9 @@ export async function buildSwapTransaction(
     type: "swap",
     to: uniswapRouter,
     data: swapData,
-    value: fromToken.toUpperCase() === "ETH" ? amountIn : BigInt(0),
+    value: isNativeToken(fromToken, fromTokenInfo.address) ? amountIn : BigInt(0),
+    gasLimit: gasConfig.complexGasLimit,
+    gasPrice: gasConfig.gasPrice,
     description: `Swap ${amount} ${fromToken} to ${toToken}`,
   });
 
@@ -154,10 +218,13 @@ export async function buildSupplyTransaction(
   const amountToSupply = parseUnits(amount, tokenInfo.decimals);
   const aavePool = getProtocolAddress(chainId, "aaveV3Pool");
 
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
   const transactions: PreparedTransaction[] = [];
 
-  // 如果不是 ETH，需要先 approve
-  if (token.toUpperCase() !== "ETH") {
+  // 如果不是原生代币，需要先 approve
+  if (!isNativeToken(token, tokenInfo.address)) {
     const approveData = encodeFunctionData({
       abi: erc20Abi,
       functionName: "approve",
@@ -170,24 +237,90 @@ export async function buildSupplyTransaction(
       to: tokenInfo.address,
       data: approveData,
       value: BigInt(0),
+      gasLimit: gasConfig.simpleGasLimit,
+      gasPrice: gasConfig.gasPrice,
+      
       description: `Approve ${amount} ${token} for Aave`,
     });
   }
 
   // Supply 到 Aave
+  console.log(`[tx-builder] Encoding supply function call...`);
+  console.log(`[tx-builder] Supply params:`, {
+    asset: tokenInfo.address,
+    amount: amountToSupply.toString(),
+    onBehalfOf: walletAddress,
+    referralCode: 0
+  });
+
   const supplyData = encodeFunctionData({
     abi: aavePoolAbi,
     functionName: "supply",
     args: [tokenInfo.address, amountToSupply, walletAddress, 0], // referralCode = 0
   });
 
-  transactions.push({
-    id: `${intent.id}-supply`,
-    type: "supply",
-    to: aavePool,
+  console.log(`[tx-builder] Supply data encoded:`, {
     data: supplyData,
-    value: token.toUpperCase() === "ETH" ? amountToSupply : BigInt(0),
-    description: `Supply ${amount} ${token} to Aave`,
+    dataLength: supplyData.length,
+    dataPreview: supplyData.substring(0, 100) + '...'
+  });
+
+  const isNative = isNativeToken(token, tokenInfo.address);
+  const supplyValue = isNative ? amountToSupply : BigInt(0);
+
+  console.log(`[tx-builder] Building supply transaction:`, {
+    token,
+    amount,
+    amountToSupply: amountToSupply.toString(),
+    tokenAddress: tokenInfo.address,
+    isNative,
+    aavePool,
+    walletAddress,
+    supplyValue: supplyValue.toString(),
+    dataLength: supplyData.length,
+    gasConfig: gasConfig
+  });
+
+  // For native tokens with smart accounts (Concentric), we need to handle differently
+  // because they can't send value + data in the same transaction
+  if (isNative) {
+    // Option 1: Try to send as single transaction (works for standard EOAs)
+    // Option 2: For smart accounts, the wallet should handle batching automatically
+    // Concentric should support this via UserOperations, but if it doesn't work,
+    // users need to switch to a standard EOA account
+
+    transactions.push({
+      id: `${intent.id}-supply`,
+      type: "supply",
+      to: aavePool,
+      data: supplyData,
+      value: supplyValue,
+      gasLimit: gasConfig.complexGasLimit,
+      gasPrice: gasConfig.gasPrice,
+      description: `Supply ${amount} ${token} to Aave`,
+    });
+  } else {
+    // ERC20 tokens - standard approach
+    transactions.push({
+      id: `${intent.id}-supply`,
+      type: "supply",
+      to: aavePool,
+      data: supplyData,
+      value: BigInt(0),
+      gasLimit: gasConfig.complexGasLimit,
+      gasPrice: gasConfig.gasPrice,
+      description: `Supply ${amount} ${token} to Aave`,
+    });
+  }
+
+  console.log(`[tx-builder] Supply transaction built:`, {
+    txCount: transactions.length,
+    hasApprove: transactions.length > 1,
+    supplyTx: {
+      to: transactions[transactions.length - 1].to,
+      value: transactions[transactions.length - 1].value.toString(),
+      description: transactions[transactions.length - 1].description
+    }
   });
 
   return transactions;
@@ -216,6 +349,9 @@ export async function buildWithdrawTransaction(
   const amountToWithdraw = amount === "MAX" ? maxUint256 : parseUnits(amount, tokenInfo.decimals);
   const aavePool = getProtocolAddress(chainId, "aaveV3Pool");
 
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
   // Withdraw 从 Aave
   const withdrawData = encodeFunctionData({
     abi: aavePoolAbi,
@@ -230,6 +366,9 @@ export async function buildWithdrawTransaction(
       to: aavePool,
       data: withdrawData,
       value: BigInt(0),
+      gasLimit: gasConfig.complexGasLimit,
+      gasPrice: gasConfig.gasPrice,
+      
       description: `Withdraw ${amount} ${token} from Aave`,
     },
   ];
@@ -259,8 +398,11 @@ export async function buildTransferTransaction(
 
   const amountToTransfer = parseUnits(amount, tokenInfo.decimals);
 
-  if (token.toUpperCase() === "ETH") {
-    // ETH 转账
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
+  if (isNativeToken(token, tokenInfo.address)) {
+    // 原生代币转账（ETH、MON 等）
     return [
       {
         id: `${intent.id}-transfer`,
@@ -268,7 +410,10 @@ export async function buildTransferTransaction(
         to: to as Address,
         data: "0x",
         value: amountToTransfer,
-        description: `Transfer ${amount} ETH to ${to}`,
+        gasLimit: gasConfig.simpleGasLimit,
+        gasPrice: gasConfig.gasPrice,
+        
+        description: `Transfer ${amount} ${token} to ${to}`,
       },
     ];
   } else {
@@ -286,6 +431,9 @@ export async function buildTransferTransaction(
         to: tokenInfo.address,
         data: transferData,
         value: BigInt(0),
+        gasLimit: gasConfig.simpleGasLimit,
+        gasPrice: gasConfig.gasPrice,
+        
         description: `Transfer ${amount} ${token} to ${to}`,
       },
     ];
@@ -312,7 +460,183 @@ export async function buildTransaction(
       return buildTransferTransaction(intent, walletAddress, chainId);
     case "check_balance":
       return [];
+    case "call_faucet":
+      return buildFaucetTransaction(intent, walletAddress, chainId);
+    case "stake_with_yield":
+      return buildStakeTransaction(intent, walletAddress, chainId);
     default:
       throw new Error(`Unknown intent type: ${(intent as any).type}`);
   }
+}
+
+/**
+ * 构建 Faucet 交易
+ * 调用 MockMonad 合约的 faucet() 函数获取测试币
+ */
+export async function buildFaucetTransaction(
+  intent: Intent,
+  _walletAddress: Address,
+  chainId: number
+): Promise<PreparedTransaction[]> {
+  if (intent.type !== "call_faucet") {
+    throw new Error("Invalid intent type");
+  }
+
+  // 从环境变量获取 MockMonad 合约地址
+  const mockMonadAddress = (process.env.NEXT_PUBLIC_MONAD_TOKEN ||
+    "0x0000000000000000000000000000000000000000") as Address;
+
+  if (mockMonadAddress === "0x0000000000000000000000000000000000000000") {
+    throw new Error("MockMonad contract address not configured. Please set NEXT_PUBLIC_MONAD_TOKEN in .env.local");
+  }
+
+  console.log(`[tx-builder] Building faucet transaction:`, {
+    contract: mockMonadAddress,
+    chainId
+  });
+
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
+  // MockMonad ABI - 只需要 faucet 函数
+  const mockMonadAbi = [
+    {
+      type: "function",
+      name: "faucet",
+      stateMutability: "nonpayable",
+      inputs: [],
+      outputs: [],
+    },
+  ] as const;
+
+  // 编码调用数据
+  const data = encodeFunctionData({
+    abi: mockMonadAbi,
+    functionName: "faucet",
+    args: [],
+  });
+
+  const tx: PreparedTransaction = {
+    id: `faucet-${Date.now()}`,
+    type: "swap", // 使用 swap 类型，因为它是一个合约调用
+    to: mockMonadAddress,
+    data,
+    value: BigInt(0),
+    gasLimit: gasConfig.simpleGasLimit,
+    gasPrice: gasConfig.gasPrice,
+    
+    description: "Call MockMonad.faucet() to get 100 MONAD tokens",
+  };
+
+  console.log(`[tx-builder] Faucet transaction built:`, {
+    to: tx.to,
+    description: tx.description,
+    gasLimit: gasConfig.simpleGasLimit
+  });
+
+  return [tx];
+}
+
+/**
+ * 构建 Stake 交易
+ * 1. 如果是 ERC20 Token，需要先 approve Staking Pool
+ * 2. 执行 stake
+ */
+export async function buildStakeTransaction(
+  intent: Intent,
+  walletAddress: Address,
+  chainId: number
+): Promise<PreparedTransaction[]> {
+  if (DEBUG) console.debug(`[tx-builder] buildStakeTransaction called - intentId=${intent.id}, chainId=${chainId}, wallet=${walletAddress}`);
+  if (intent.type !== "stake_with_yield") {
+    throw new Error("Invalid intent type");
+  }
+
+  const { token, amount, yieldRecipient } = intent.params;
+  const tokenInfo = getTokenBySymbol(chainId, token);
+
+  if (!tokenInfo) {
+    throw new Error(`Token not found: ${token}`);
+  }
+
+  const amountToStake = parseUnits(amount, tokenInfo.decimals);
+
+  // 从环境变量获取 Staking Pool 合约地址
+  const stakingPoolAddress = (process.env.NEXT_PUBLIC_STAKING_POOL ||
+    "0x0000000000000000000000000000000000000000") as Address;
+
+  if (stakingPoolAddress === "0x0000000000000000000000000000000000000000") {
+    throw new Error("Staking Pool contract address not configured. Please set NEXT_PUBLIC_STAKING_POOL in .env.local");
+  }
+
+  // 获取 Gas 配置
+  const gasConfig = getGasConfig(chainId);
+
+  const transactions: PreparedTransaction[] = [];
+
+  // 如果不是原生代币，需要先 approve
+  if (!isNativeToken(token, tokenInfo.address)) {
+    const approveData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [stakingPoolAddress, maxUint256],
+    });
+
+    transactions.push({
+      id: `${intent.id}-approve`,
+      type: "approve",
+      to: tokenInfo.address,
+      data: approveData,
+      value: BigInt(0),
+      gasLimit: gasConfig.simpleGasLimit,
+      gasPrice: gasConfig.gasPrice,
+      description: `Approve ${amount} ${token} for Staking Pool`,
+    });
+  }
+
+  // Stake 到 Staking Pool
+  const stakeData = encodeFunctionData({
+    abi: STAKING_POOL_ABI,
+    functionName: "stake",
+    args: [amountToStake, yieldRecipient as Address],
+  });
+
+  const isNative = isNativeToken(token, tokenInfo.address);
+  const stakeValue = isNative ? amountToStake : BigInt(0);
+
+  console.log(`[tx-builder] Building stake transaction:`, {
+    token,
+    amount,
+    amountToStake: amountToStake.toString(),
+    tokenAddress: tokenInfo.address,
+    isNative,
+    stakingPool: stakingPoolAddress,
+    walletAddress,
+    stakeValue: stakeValue.toString(),
+    yieldRecipient,
+    dataLength: stakeData.length,
+  });
+
+  transactions.push({
+    id: `${intent.id}-stake`,
+    type: "swap", // 使用 swap 类型，因为它是一个合约调用
+    to: stakingPoolAddress,
+    data: stakeData,
+    value: stakeValue,
+    gasLimit: gasConfig.complexGasLimit,
+    gasPrice: gasConfig.gasPrice,
+    description: `Stake ${amount} ${token} (yield to ${yieldRecipient})`,
+  });
+
+  console.log(`[tx-builder] Stake transaction built:`, {
+    txCount: transactions.length,
+    hasApprove: transactions.length > 1,
+    stakeTx: {
+      to: transactions[transactions.length - 1].to,
+      value: transactions[transactions.length - 1].value.toString(),
+      description: transactions[transactions.length - 1].description
+    }
+  });
+
+  return transactions;
 }

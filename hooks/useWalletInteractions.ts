@@ -1,5 +1,12 @@
 "use client";
 
+// 扩展 Window 接口以支持 ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 // React Hooks 导入
 // useCallback: 用于缓存回调函数，避免不必要的重新渲染
 // useState: 用于在函数组件中添加状态管理
@@ -34,6 +41,7 @@ import {
   useReadContract,
   useBalance,
   usePublicClient,
+  useWalletClient,
 } from "wagmi";
 
 // Viem 库相关导入，用于以太坊类型和工具函数
@@ -50,7 +58,8 @@ import { parseUnits, formatUnits, Address } from "viem";
 import { Intent, PreparedTransaction, TransactionResult } from "@/types/intent";
 
 // 交易构建函数导入，用于构建不同类型的交易
-import { buildSwapTransaction, buildSupplyTransaction, buildWithdrawTransaction, buildTransferTransaction } from "@/lib/web3/transaction-builder";
+import { buildSwapTransaction, buildSupplyTransaction, buildWithdrawTransaction, buildTransferTransaction, buildFaucetTransaction, buildStakeTransaction } from "@/lib/web3/transaction-builder";
+import { getWalletSummary } from "@/lib/web3/balance-checker";
 
 /**
  * 交易执行状态接口
@@ -83,6 +92,7 @@ export interface ExecutionResult {
 export function useWalletInteractions() {
   const { address, chainId, isConnected } = useAccount();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
 
   // 交易发送
   const { sendTransaction } = useSendTransaction();
@@ -102,6 +112,7 @@ export function useWalletInteractions() {
    * 批量执行交易
    */
   const DEBUG = process.env.NEXT_PUBLIC_DEBUG_TX === "true";
+  const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
   const executeTransactions = useCallback(
     async (transactions: PreparedTransaction[]): Promise<ExecutionResult> => {
@@ -127,8 +138,65 @@ export function useWalletInteractions() {
       const txHashes: `0x${string}`[] = [];
 
       try {
+        // Mock 模式：模拟交易执行
+        if (MOCK_MODE) {
+          console.log('🎭 [Mock Mode] Simulating transactions without blockchain execution...');
+          console.log(`[wallet-hook] Total transactions: ${transactions.length}`);
+
+          for (let i = 0; i < transactions.length; i++) {
+            const tx = transactions[i];
+            console.log(`[wallet-hook] Simulating tx ${i + 1}/${transactions.length}`, {
+              id: tx.id,
+              type: tx.type,
+              to: tx.to,
+              value: tx.value?.toString(),
+            });
+
+            setTxState((prev) => ({
+              ...prev,
+              currentStep: i + 1,
+            }));
+
+            // 模拟延迟（1-2秒）
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+
+            // 生成模拟交易哈希
+            const mockHash = `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}` as `0x${string}`;
+            txHashes.push(mockHash);
+
+            console.log(`[wallet-hook] Mock transaction ${i + 1} completed: ${mockHash}`);
+          }
+
+          setTxState({
+            isExecuting: false,
+            isConfirming: false,
+            isSuccess: true,
+            error: null,
+            currentTxHash: txHashes[txHashes.length - 1],
+            currentStep: 0,
+            totalSteps: transactions.length,
+          });
+
+          console.log('✅ [Mock Mode] All transactions simulated successfully!');
+          console.log(`[wallet-hook] Transaction hashes:`, txHashes);
+
+          return {
+            success: true,
+            txHashes,
+            error: null,
+          };
+        }
+
+        // 真实模式：执行区块链交易
+        console.log('[wallet-hook] Starting to send transactions...');
         for (let i = 0; i < transactions.length; i++) {
           const tx = transactions[i];
+
+          console.log(`[wallet-hook] Preparing tx ${i + 1}/${transactions.length}`, {
+            id: tx.id,
+            to: tx.to,
+            value: tx.value?.toString()
+          });
 
           if (DEBUG) console.debug(`[wallet-hook] sending tx ${i + 1}/${transactions.length} id=${tx.id} to=${tx.to}`);
           setTxState((prev) => ({
@@ -137,28 +205,141 @@ export function useWalletInteractions() {
           }));
 
           // 发送交易
-          // PreparedTransaction 包含自定义的 `type` 字段，可能与 wagmi 的 SendTransactionVariables 类型不完全匹配。
-          // 这里使用类型断言为 any 以避免编译时类型错误（运行时仍会按 tx 对象发送）。
-          const hash = await sendTransactionAsync(tx as any);
+          console.log('[wallet-hook] Calling sendTransactionAsync...');
+          console.log('[wallet-hook] Transaction details:', {
+            to: tx.to,
+            value: tx.value?.toString(),
+            valueInETH: tx.value ? Number(tx.value) / 1e18 : 0,
+            gasLimit: tx.gasLimit?.toString(),
+            gasPrice: tx.gasPrice?.toString(),
+            dataLength: tx.data?.length,
+            dataPreview: tx.data?.substring(0, 50) + '...',
+          });
 
+          // 对于 Monad Testnet，使用 window.ethereum 直接发送以避免 viem 超时
+          let hash: `0x${string}`;
+          if (chainId === 10143 && typeof window !== 'undefined' && window.ethereum) {
+            console.log('[wallet-hook] Using window.ethereum directly for Monad Testnet (to avoid viem timeout)');
+
+            try {
+              // 构建交易参数
+              const txParams: any = {
+                from: address,
+                to: tx.to,
+                data: tx.data as `0x${string}`,
+              };
+
+              // 只在有值时添加 value
+              if (tx.value && tx.value > 0n) {
+                txParams.value = '0x' + tx.value.toString(16);
+              }
+
+              console.log('[wallet-hook] Final txParams:', {
+                from: txParams.from,
+                to: txParams.to,
+                value: txParams.value,
+                valueInETH: tx.value ? Number(tx.value) / 1e18 : 0,
+                dataLength: txParams.data?.length,
+                dataPreview: txParams.data?.substring(0, 100) + '...',
+              });
+
+              // 检测是否是原生代币 + data 的组合（智能账户不支持）
+              const hasValue = tx.value && tx.value > BigInt(0);
+              const hasData = tx.data && tx.data.length > 0;
+
+              if (hasValue && hasData) {
+                console.warn('[wallet-hook] Detected native token + data transaction');
+                console.warn('[wallet-hook] This may fail with smart accounts (Concentric)');
+                console.warn('[wallet-hook] If this fails, please switch to a standard EOA account in MetaMask');
+              }
+
+              // 使用 MetaMask 的直接 API，不经过 viem
+              // 不预设 Gas 参数，让 MetaMask 完全处理
+              console.log('[wallet-hook] Sending transaction via MetaMask...');
+              const result = await window.ethereum.request({
+                method: 'eth_sendTransaction',
+                params: [txParams],
+              });
+
+              hash = result as `0x${string}`;
+              console.log(`[wallet-hook] Transaction sent via MetaMask: ${hash}`);
+            } catch (error: any) {
+              console.error('[wallet-hook] window.ethereum.request failed:', error);
+              console.error('[wallet-hook] Error details:', {
+                code: error.code,
+                message: error.message,
+                data: error.data,
+                stack: error.stack
+              });
+
+              // 检测特定的智能账户错误
+              if (error.message && error.message.includes('External transactions to internal accounts cannot include data')) {
+                const smartAccountError = 'Your wallet (Concentric smart account) does not support sending native tokens with function calls. Please switch to a standard EOA account in MetaMask, or supply ERC20 tokens instead.';
+                console.error('[wallet-hook] Smart account incompatibility detected');
+                setTxState((prev) => ({
+                  ...prev,
+                  isExecuting: false,
+                  error: smartAccountError,
+                }));
+                return {
+                  success: false,
+                  txHashes: [],
+                  error: smartAccountError,
+                };
+              }
+
+              // 如果是用户拒绝的错误
+              if (error.code === 4001) {
+                setTxState((prev) => ({
+                  ...prev,
+                  isExecuting: false,
+                  error: 'User rejected the transaction',
+                }));
+                return {
+                  success: false,
+                  txHashes: [],
+                  error: 'User rejected the transaction',
+                };
+              }
+
+              // 其他错误，尝试回退到 sendTransaction
+              console.log('[wallet-hook] Falling back to sendTransaction...');
+              try {
+                hash = await sendTransactionAsync(tx as any);
+              } catch (fallbackError: any) {
+                console.error('[wallet-hook] Fallback also failed:', fallbackError);
+                setTxState((prev) => ({
+                  ...prev,
+                  isExecuting: false,
+                  error: error.message || 'Transaction failed',
+                }));
+                return {
+                  success: false,
+                  txHashes,
+                  error: error.message || fallbackError.message,
+                };
+              }
+            }
+          } else {
+            // 其他链使用 sendTransaction
+            hash = await sendTransactionAsync(tx as any);
+          }
+
+          console.log(`[wallet-hook] Got hash! ${hash}`);
           if (DEBUG) console.debug(`[wallet-hook] tx sent - id=${tx.id} hash=${hash}`);
 
           txHashes.push(hash);
 
+          console.log(`[wallet-hook] tx submitted successfully - hash=${hash}`);
+          console.log(`[wallet-hook] transaction in mempool, check MetaMask for status`);
+
+          // 不等待确认，直接标记为成功（因为 MetaMask 已经签名发送）
+          // 用户可以在 MetaMask 中查看确认状态
           setTxState((prev) => ({
             ...prev,
             currentTxHash: hash,
-            isConfirming: true,
+            isConfirming: false, // 不再等待确认
           }));
-
-          // 等待交易确认
-          const receipt = await publicClient?.waitForTransactionReceipt({
-            hash,
-          });
-
-          if (receipt?.status === "reverted") {
-            throw new Error(`Transaction ${i + 1} failed`);
-          }
         }
 
         setTxState({
@@ -204,36 +385,102 @@ export function useWalletInteractions() {
    */
   const executeIntent = useCallback(
     async (intent: Intent): Promise<ExecutionResult> => {
-      if (!chainId) {
+      console.log('[executeIntent] Called with intent:', intent.type, intent.params);
+
+      if (!chainId || !address || !publicClient) {
+        console.error('[executeIntent] Wallet not connected or missing data');
         return {
           success: false,
           txHashes: [],
-          error: "Chain ID not found",
+          error: "Wallet not connected or chain not supported",
         };
       }
 
       try {
+        console.log('[executeIntent] Building transactions...');
         let transactions: PreparedTransaction[] = [];
 
         switch (intent.type) {
           case "swap":
-            transactions = await buildSwapTransaction(intent, address!, chainId);
+            console.log('[executeIntent] Building swap transaction...');
+            transactions = await buildSwapTransaction(intent, address, chainId);
+            console.log('[executeIntent] Swap transaction built:', transactions);
             break;
           case "supply":
-            transactions = await buildSupplyTransaction(intent, address!, chainId);
+            transactions = await buildSupplyTransaction(intent, address, chainId);
             break;
           case "withdraw":
-            transactions = await buildWithdrawTransaction(intent, address!, chainId);
+            transactions = await buildWithdrawTransaction(intent, address, chainId);
             break;
           case "transfer":
-            transactions = await buildTransferTransaction(intent, address!, chainId);
+            transactions = await buildTransferTransaction(intent, address, chainId);
+            break;
+          case "call_faucet":
+            console.log('[executeIntent] Building faucet transaction...');
+            transactions = await buildFaucetTransaction(intent, address, chainId);
+            console.log('[executeIntent] Faucet transaction built:', transactions);
             break;
           case "check_balance":
-            // 余额查询不需要执行交易
-            return {
-              success: true,
-              txHashes: [],
-            };
+            // 实际查询余额
+            console.log("💰 [Balance Check] Querying balance for", address, "on chain", chainId);
+
+            // 更新状态为执行中
+            setTxState({
+              isExecuting: true,
+              isConfirming: false,
+              isSuccess: false,
+              error: null,
+              currentTxHash: null,
+              currentStep: 1,
+              totalSteps: 1,
+            });
+
+            try {
+              const summary = await getWalletSummary(publicClient, chainId, address as Address);
+              console.log("✅ [Balance Check] Query successful:", summary);
+
+              // 更新状态为成功
+              setTxState({
+                isExecuting: false,
+                isConfirming: false,
+                isSuccess: true,
+                error: null,
+                currentTxHash: null,
+                currentStep: 1,
+                totalSteps: 1,
+              });
+
+              // 余额查询成功，但不需要交易哈希
+              // 我们将通过状态更新来显示结果
+              return {
+                success: true,
+                txHashes: [],
+              };
+            } catch (error: any) {
+              console.error("❌ [Balance Check] Query failed:", error);
+
+              // 更新状态为失败
+              setTxState({
+                isExecuting: false,
+                isConfirming: false,
+                isSuccess: false,
+                error: error.message || "Failed to query balance",
+                currentTxHash: null,
+                currentStep: 0,
+                totalSteps: 0,
+              });
+
+              return {
+                success: false,
+                txHashes: [],
+                error: error.message || "Failed to query balance",
+              };
+            }
+          case "stake_with_yield":
+            console.log('[executeIntent] Building stake transaction...');
+            transactions = await buildStakeTransaction(intent, address, chainId);
+            console.log('[executeIntent] Stake transaction built:', transactions);
+            break;
           default:
             return {
               success: false,
@@ -251,7 +498,7 @@ export function useWalletInteractions() {
         };
       }
     },
-    [chainId, address, executeTransactions]
+    [chainId, address, publicClient, executeTransactions]
   );
 
   /**

@@ -48,6 +48,13 @@ export const checkBalanceSchema = z.object({
     .describe("Specific token to check, or omit for all tokens"),
 });
 
+// Stake with Yield Recipient 参数 Schema
+export const stakeWithYieldSchema = z.object({
+  token: z.string().describe("The token to stake (e.g., 'MONAD', 'ETH')"),
+  amount: z.string().describe("The amount to stake"),
+  yieldRecipient: z.string().describe("The wallet address that will receive the yield/interest payments"),
+});
+
 // 工具定义（用于 OpenAI Function Calling）
 export const intentTools = [
   {
@@ -130,21 +137,21 @@ export const intentTools = [
     function: {
       name: "transfer_token",
       description:
-        "Transfer/send tokens to another address. Use when user wants to send, transfer tokens to someone.",
+        "Transfer/send tokens to another address. Use this when user wants to send, transfer, or send tokens/coins to a specific address. Keywords: transfer, send, send to, transfer to, pay, give. Example: 'transfer 0.01 MON to 0x1234...' or 'send 1 ETH to vitalik.eth'",
       parameters: {
         type: "object",
         properties: {
           token: {
             type: "string",
-            description: "The token symbol to transfer",
+            description: "The token symbol to transfer (e.g., 'MON', 'ETH', 'USDC')",
           },
           amount: {
             type: "string",
-            description: "The amount to transfer",
+            description: "The amount to transfer (e.g., '0.01', '1', '10')",
           },
           to: {
             type: "string",
-            description: "The recipient address or ENS name",
+            description: "The recipient wallet address (must be a valid Ethereum address starting with 0x)",
           },
         },
         required: ["token", "amount", "to"],
@@ -169,6 +176,50 @@ export const intentTools = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "call_faucet",
+      description:
+        "Call faucet function to get test tokens from mock contracts. Use when user wants to get test tokens, free tokens, or request tokens from faucet.",
+      parameters: {
+        type: "object",
+        properties: {
+          token: {
+            type: "string",
+            description: "Token symbol to get from faucet (e.g., MONAD). Defaults to MONAD if not specified.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "stake_with_yield_recipient",
+      description:
+        "Stake tokens and specify a different address to receive the yield/interest payments. Use when user wants to stake for someone else or send yield to a friend.",
+      parameters: {
+        type: "object",
+        properties: {
+          token: {
+            type: "string",
+            description: "The token to stake (e.g., 'MONAD', 'ETH')",
+          },
+          amount: {
+            type: "string",
+            description: "The amount to stake",
+          },
+          yieldRecipient: {
+            type: "string",
+            description: "The wallet address that will receive the yield payments (e.g., '0x1234...')",
+          },
+        },
+        required: ["token", "amount", "yieldRecipient"],
+      },
+    },
+  },
 ];
 
 // Intent 类型定义
@@ -177,7 +228,8 @@ export type IntentType =
   | "supply"
   | "withdraw"
   | "transfer"
-  | "check_balance";
+  | "check_balance"
+  | "stake_with_yield";
 
 export interface ParsedIntent {
   id: string;
